@@ -22,9 +22,17 @@
                         <span class="badge bg-danger ms-3">No vigente / Sin información</span>
                     {% endif %}
                 </div>
-                <a href="{% url 'arancel:partida_detail' subpartida.partida.id %}" class="btn btn-outline-light btn-sm">
-                    <i class="fas fa-list-ol me-1"></i> Ver Partida
-                </a>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-light btn-sm btn-copiar" 
+                            data-codigo="{{ subpartida.codigo|replace_none }}" 
+                            data-descripcion="{{ subpartida.descripcion|replace_none }}"
+                            title="Copiar código y descripción">
+                        <i class="fas fa-copy me-1"></i>Copiar código y descripción
+                    </button>
+                    <a href="{% url 'arancel:partida_detail' subpartida.partida.id %}" class="btn btn-outline-light btn-sm">
+                        <i class="fas fa-list-ol me-1"></i> Ver Partida
+                    </a>
+                </div>
             </div>
             <div class="card-body">
                 <dl class="row">
@@ -59,6 +67,110 @@
                     <dt class="col-sm-4">ACE 66 México:</dt>
                     <dd class="col-sm-8">{{ subpartida.ace_66_mexico|replace_none }}</dd>
                 </dl>
+
+                <!-- Sección de Requisitos Adicionales -->
+                <div class="card mt-4 mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-clipboard-check me-2"></i>
+                            Requisitos Adicionales
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Permiso -->
+                            <div class="col-md-4">
+                                <div class="card h-100 {% if subpartida.requiere_permiso %}border-warning{% else %}border-success{% endif %}">
+                                    <div class="card-body">
+                                        <h5 class="card-title">
+                                            <i class="fas fa-file-alt me-2"></i>Permiso
+                                            {% if subpartida.requiere_permiso %}
+                                                <span class="badge bg-warning text-dark float-end">Requerido</span>
+                                            {% else %}
+                                                <span class="badge bg-success float-end">No requerido</span>
+                                            {% endif %}
+                                        </h5>
+                                        {% if subpartida.requiere_permiso %}
+                                            <p class="card-text">{{ subpartida.detalle_permiso }}</p>
+                                            <p class="mb-0"><strong>Entidad:</strong> {{ subpartida.entidad_permiso }}</p>
+                                            <div class="mt-2">
+                                                <span class="badge {% if subpartida.estado_permiso == 'completado' %}bg-success
+                                                    {% elif subpartida.estado_permiso == 'en_proceso' %}bg-info
+                                                    {% elif subpartida.estado_permiso == 'pendiente' %}bg-warning
+                                                    {% else %}bg-secondary{% endif %}">
+                                                    {{ subpartida.estado_permiso|title }}
+                                                </span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Licencia -->
+                            <div class="col-md-4">
+                                <div class="card h-100 {% if subpartida.requiere_licencia %}border-warning{% else %}border-success{% endif %}">
+                                    <div class="card-body">
+                                        <h5 class="card-title">
+                                            <i class="fas fa-id-card me-2"></i>Licencia
+                                            {% if subpartida.requiere_licencia %}
+                                                <span class="badge bg-warning text-dark float-end">Requerido</span>
+                                            {% else %}
+                                                <span class="badge bg-success float-end">No requerido</span>
+                                            {% endif %}
+                                        </h5>
+                                        {% if subpartida.requiere_licencia %}
+                                            <p class="card-text">{{ subpartida.detalle_licencia }}</p>
+                                            <p class="mb-0"><strong>Entidad:</strong> {{ subpartida.entidad_licencia }}</p>
+                                            <div class="mt-2">
+                                                <span class="badge {% if subpartida.estado_licencia == 'completado' %}bg-success
+                                                    {% elif subpartida.estado_licencia == 'en_proceso' %}bg-info
+                                                    {% elif subpartida.estado_licencia == 'pendiente' %}bg-warning
+                                                    {% else %}bg-secondary{% endif %}">
+                                                    {{ subpartida.estado_licencia|title }}
+                                                </span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Cupo -->
+                            <div class="col-md-4">
+                                <div class="card h-100 {% if subpartida.requiere_cupo %}border-warning{% else %}border-success{% endif %}">
+                                    <div class="card-body">
+                                        <h5 class="card-title">
+                                            <i class="fas fa-chart-pie me-2"></i>Cupo
+                                            {% if subpartida.requiere_cupo %}
+                                                <span class="badge bg-warning text-dark float-end">Requerido</span>
+                                            {% else %}
+                                                <span class="badge bg-success float-end">No requerido</span>
+                                            {% endif %}
+                                        </h5>
+                                        {% if subpartida.requiere_cupo %}
+                                            <p class="card-text">{{ subpartida.detalle_cupo }}</p>
+                                            <p class="mb-0"><strong>Entidad:</strong> {{ subpartida.entidad_cupo }}</p>
+                                            <div class="mt-2">
+                                                <span class="badge {% if subpartida.estado_cupo == 'completado' %}bg-success
+                                                    {% elif subpartida.estado_cupo == 'en_proceso' %}bg-info
+                                                    {% elif subpartida.estado_cupo == 'pendiente' %}bg-warning
+                                                    {% else %}bg-secondary{% endif %}">
+                                                    {{ subpartida.estado_cupo|title }}
+                                                </span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if subpartida.instrucciones_validacion %}
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Instrucciones adicionales:</strong><br>
+                            {{ subpartida.instrucciones_validacion }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
                 <div class="d-flex justify-content-between mt-4">
                     <a href="{% url 'arancel:partida_detail' subpartida.partida.id %}" class="btn btn-secondary">
                         <i class="fas fa-arrow-left me-2"></i>
@@ -75,4 +187,64 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Función para copiar código y descripción al portapapeles
+    function copiarCodigoDescripcion(codigo, descripcion) {
+        // Formato estándar: CÓDIGO - Descripción
+        const texto = codigo + ' - ' + descripcion;
+        
+        // Usar la API del portapapeles
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(texto).then(function() {
+                // Éxito - el feedback visual se maneja en el event listener
+            }).catch(function(err) {
+                console.error('Error al copiar:', err);
+                alert('Error al copiar al portapapeles. Por favor, copia manualmente: ' + texto);
+            });
+        } else {
+            // Fallback para navegadores antiguos
+            const textarea = document.createElement('textarea');
+            textarea.value = texto;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                alert('Copiado: ' + texto);
+            } catch (err) {
+                alert('Error al copiar. Por favor, copia manualmente: ' + texto);
+            }
+            document.body.removeChild(textarea);
+        }
+    }
+    
+    // Agregar event listener al botón de copiar
+    const botonCopiar = document.querySelector('.btn-copiar');
+    if (botonCopiar) {
+        botonCopiar.addEventListener('click', function() {
+            const codigo = this.getAttribute('data-codigo');
+            const descripcion = this.getAttribute('data-descripcion');
+            
+            if (codigo && descripcion) {
+                copiarCodigoDescripcion(codigo, descripcion);
+                
+                // Feedback visual
+                const originalHTML = this.innerHTML;
+                const originalClass = this.className;
+                this.innerHTML = '<i class="fas fa-check me-1"></i>¡Copiado!';
+                this.classList.remove('btn-light');
+                this.classList.add('btn-success');
+                
+                setTimeout(function() {
+                    botonCopiar.innerHTML = originalHTML;
+                    botonCopiar.className = originalClass;
+                }, 2000);
+            }
+        });
+    }
+});
+</script>
 {% endblock %} 

@@ -30,10 +30,27 @@ class PerfilUsuario(models.Model):
     def __str__(self):
         return f"{self.usuario.username} - {self.rol.nombre if self.rol else 'Sin rol'}"
 
+# En central/models.py
+
 class HistorialBusqueda(models.Model):
+    # Opciones para el nuevo campo 'accion'
+    class Accion(models.TextChoices):
+        BUSQUEDA = 'BUSQUEDA', 'Búsqueda'
+        VISTA_DETALLE = 'VISTA_DETALLE', 'Vista de Detalle'
+        REPORTE = 'REPORTE', 'Generación de Reporte'
+        # Aquí puedes agregar más acciones a futuro (ej: EDICION, VALIDACION)
+
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
-    termino_busqueda = models.CharField(max_length=255)
+    termino_busqueda = models.CharField(max_length=255, blank=True, null=True) # Permitir nulo para acciones que no son búsqueda
     fecha_busqueda = models.DateTimeField(auto_now_add=True)
+    
+    # NUEVO CAMPO:
+    accion = models.CharField(
+        max_length=50,
+        choices=Accion.choices,
+        default=Accion.BUSQUEDA
+    )
+    
     tipo_resultado = models.CharField(max_length=50, blank=True, null=True)  # Sección, Capítulo, Partida, Subpartida
     id_resultado = models.IntegerField(blank=True, null=True)
     
@@ -43,4 +60,4 @@ class HistorialBusqueda(models.Model):
         verbose_name_plural = 'Historiales de Búsqueda'
     
     def __str__(self):
-        return f"{self.usuario.username} - {self.termino_busqueda} ({self.fecha_busqueda.strftime('%d/%m/%Y %H:%M')})"
+        return f"{self.usuario.username} - {self.get_accion_display()} ({self.fecha_busqueda.strftime('%d/%m/%Y %H:%M')})"

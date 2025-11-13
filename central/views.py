@@ -22,6 +22,140 @@ from django.utils.decorators import method_decorator
 from .models import HistorialBusqueda, Rol, PerfilUsuario
 from .forms import RegistroUsuarioForm
 from django.contrib.auth.decorators import permission_required
+from django.db.models import Avg, Max, Min
+import openpyxl
+import io
+from django.http import HttpResponse
+from django.template.loader import render_to_string
+from xhtml2pdf import pisa
+from django.utils import timezone
+from datetime import datetime
+from .models import HistorialBusqueda # Asegúrate de que HistorialBusqueda esté importado
+
+
+
+@login_required
+def reporte_trazabilidad(request):
+    # Lógica de filtrado (Criterio 3)
+    historial_qs = HistorialBusqueda.objects.all().select_related('usuario')
+
+    # Obtener valores de los filtros
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+    accion = request.GET.get('accion')
+
+    if fecha_inicio:
+        historial_qs = historial_qs.filter(fecha_busqueda__gte=fecha_inicio)
+    
+    if fecha_fin:
+        # Para incluir el día completo, ajustamos la fecha fin
+        fecha_fin_dt = datetime.strptime(fecha_fin, '%Y-%m-%d') + timezone.timedelta(days=1)
+        historial_qs = historial_qs.filter(fecha_busqueda__lt=fecha_fin_dt)
+
+    if accion:
+        historial_qs = historial_qs.filter(accion=accion)
+
+    context = {
+        'historial': historial_qs,
+        'acciones': HistorialBusqueda.Accion.choices,
+        'filtros': request.GET # Para pasar los filtros a los botones de descarga
+    }
+    return render(request, 'central/reporte_trazabilidad.html', context)
+
+
+# -----------------------------------------------------------------
+# VISTA DE DESCARGA DE EXCEL (Criterio 2)
+# -----------------------------------------------------------------
+@login_required
+def descargar_reporte_excel(request):
+    # 1. Re-aplicar la misma lógica de filtrado
+    historial_qs = HistorialBusqueda.objects.all().select_related('usuario')
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+    accion = request.GET.get('accion')
+
+    if fecha_inicio:
+        historial_qs = historial_qs.filter(fecha_busqueda__gte=fecha_inicio)
+    if fecha_fin:
+        fecha_fin_dt = datetime.strptime(fecha_fin, '%Y-%m-%d') + timezone.timedelta(days=1)
+        historial_qs = historial_qs.filter(fecha_busqueda__lt=fecha_fin_dt)
+    if accion:
+        historial_qs = historial_qs.filter(accion=accion)
+
+    # 2. Crear el libro de Excel en memoria
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Reporte de Trazabilidad"
+
+    # 3. Escribir los encabezados (Criterio 1)
+    headers = ["Fecha", "Hora", "Usuario", "Acción Realizada", "Término de Búsqueda", "Resultado"]
+    ws.append(headers)
+
+    # 4. Escribir los datos
+    for item in historial_qs:
+        fecha = item.fecha_busqueda.strftime('%Y-%m-%d')
+        hora = item.fecha_busqueda.strftime('%H:%M:%S')
+        ws.append([
+            fecha,
+            hora,
+            item.usuario.username,
+            item.get_accion_display(), # 'get_..._display()' obtiene el texto legible
+            item.termino_busqueda,
+            item.tipo_resultado
+        ])
+
+    # 5. Preparar la respuesta HTTP
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename=reporte_trazabilidad.xlsx'
+    
+    # Guardar el libro en la respuesta
+    wb.save(response)
+    return response
+
+
+# -----------------------------------------------------------------
+# VISTA DE DESCARGA DE PDF (Criterio 2)
+# -----------------------------------------------------------------
+# Función de utilidad para renderizar PDF
+def render_to_pdf(template_src, context_dict={}):
+    template = render_to_string(template_src, context_dict)
+    result = io.BytesIO()
+    pdf = pisa.pisaDocument(io.BytesIO(template.encode("UTF-8")), result)
+    if not pdf.err:
+        return HttpResponse(result.getvalue(), content_type='application/pdf')
+    return None
+
+@login_required
+def descargar_reporte_pdf(request):
+    # 1. Re-aplicar la misma lógica de filtrado
+    historial_qs = HistorialBusqueda.objects.all().select_related('usuario')
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+    accion = request.GET.get('accion')
+
+    if fecha_inicio:
+        historial_qs = historial_qs.filter(fecha_busqueda__gte=fecha_inicio)
+    if fecha_fin:
+        fecha_fin_dt = datetime.strptime(fecha_fin, '%Y-%m-%d') + timezone.timedelta(days=1)
+        historial_qs = historial_qs.filter(fecha_busqueda__lt=fecha_fin_dt)
+    if accion:
+        historial_qs = historial_qs.filter(accion=accion)
+
+    # 2. Renderizar el template de PDF
+    context = {
+        'historial': historial_qs,
+        'fecha_reporte': timezone.now()
+    }
+    
+    # 3. Generar y devolver el PDF
+    pdf = render_to_pdf('central/reporte_pdf_template.html', context)
+    if pdf:
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="reporte_trazabilidad.pdf"'
+        return response
+    
+    messages.error(request, "No se pudo generar el PDF.")
+    return redirect('central:reporte_trazabilidad')
 
 def es_superusuario_o_tiene_permiso_usuarios(user):
     return user.is_superuser or (hasattr(user, 'perfil') and user.perfil.rol and user.perfil.rol.permisos_usuarios)
@@ -374,3 +508,41 @@ def exportar_historial(request):
         response['Content-Disposition'] = 'attachment; filename=historial_busquedas.pdf'
         response.write(pdf)
         return response
+
+@login_required
+def estadisticas_gravamenes(request):
+    """Vista para mostrar estadísticas de gravámenes arancelarios por capítulo"""
+    # Obtener todos los capítulos
+    capitulos = Capitulo.objects.all().order_by('codigo')
+    
+    # Lista para almacenar las estadísticas por capítulo
+    estadisticas_por_capitulo = []
+    
+    for capitulo in capitulos:
+        # Obtener todas las subpartidas de este capítulo a través de las partidas
+        # Filtrar solo aquellas que tienen GA (no nulo)
+        subpartidas = Subpartida.objects.filter(
+            partida__capitulo=capitulo,
+            ga__isnull=False
+        )
+        
+        if subpartidas.exists():
+            # Calcular estadísticas
+            estadisticas = subpartidas.aggregate(
+                promedio=Avg('ga'),
+                maximo=Max('ga'),
+                minimo=Min('ga')
+            )
+            
+            # Agregar información del capítulo y estadísticas
+            estadisticas_por_capitulo.append({
+                'capitulo': capitulo,
+                'promedio': estadisticas['promedio'],
+                'maximo': estadisticas['maximo'],
+                'minimo': estadisticas['minimo'],
+                'cantidad_subpartidas': subpartidas.count()
+            })
+    
+    return render(request, 'central/estadisticas_gravamenes.html', {
+        'estadisticas': estadisticas_por_capitulo,
+    })

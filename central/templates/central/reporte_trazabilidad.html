@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h4 class="mb-0"><i class="fas fa-file-alt me-2"></i> Generar Reporte de Trazabilidad</h4>
+        </div>
+        <div class="card-body">
+            
+            <form method="GET" action="{% url 'central:reporte_trazabilidad' %}" class="mb-4 p-3 border rounded bg-light">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label for="fecha_inicio" class="form-label">Desde:</label>
+                        <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ request.GET.fecha_inicio }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="fecha_fin" class="form-label">Hasta:</label>
+                        <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ request.GET.fecha_fin }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="accion" class="form-label">Tipo de Operación:</label>
+                        <select class="form-select" id="accion" name="accion">
+                            <option value="">Todas</option>
+                            {% for value, text in acciones %}
+                            <option value="{{ value }}" {% if request.GET.accion == value %}selected{% endif %}>{{ text }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i> Filtrar</button>
+                    </div>
+                </div>
+            </form>
+
+            {% if historial %}
+            <div class="mb-3 text-end">
+                <a href="{% url 'central:descargar_reporte_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success">
+                    <i class="fas fa-file-excel me-1"></i> Descargar Excel
+                </a>
+                <a href="{% url 'central:descargar_reporte_pdf' %}?{{ request.GET.urlencode }}" class="btn btn-danger">
+                    <i class="fas fa-file-pdf me-1"></i> Descargar PDF
+                </a>
+            </div>
+            {% endif %}
+
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Hora</th>
+                            <th>Usuario</th>
+                            <th>Acción Realizada</th>
+                            <th>Término de Búsqueda / Código</th>
+                            <th>Resultado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in historial %}
+                        <tr>
+                            <td>{{ item.fecha_busqueda|date:"Y-m-d" }}</td>
+                            <td>{{ item.fecha_busqueda|time:"H:i:s" }}</td>
+                            <td>{{ item.usuario.username }}</td>
+                            <td>{{ item.get_accion_display }}</td>
+                            <td>{{ item.termino_busqueda|default:"N/A" }}</td>
+                            <td>{{ item.tipo_resultado|default:"N/A" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No hay registros que coincidan con los filtros.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+        </div>
+    </div>
+</div>
+{% endblock %}

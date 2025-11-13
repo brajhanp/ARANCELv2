@@ -2,6 +2,8 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from .models import Seccion, Partida, Subpartida, Capitulo
 from .forms import SeccionForm
+from django.views.decorators.http import require_GET
+from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView
 from django.contrib import messages
@@ -11,6 +13,10 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_GET
 from central.models import HistorialBusqueda
 from arancel.templatetags.custom_filters import is_descriptive_code
+from difflib import get_close_matches
+from difflib import get_close_matches
+from django.db.models import Q # Asegúrate de que Q esté importado
+
 
 
 # Utilidad interna: limpiar guiones bajos para respuestas JSON (sugerencias)
@@ -135,75 +141,58 @@ def buscador_global(request):
         messages.warning(request, 'Por favor ingresa un término de búsqueda.')
         return redirect(request.META.get('HTTP_REFERER', '/'))
 
-    partidas = Partida.objects.filter(models.Q(codigo__icontains=query) | models.Q(descripcion__icontains=query))
-    subpartidas = Subpartida.objects.filter(models.Q(codigo__icontains=query) | models.Q(descripcion__icontains=query))
-
-    # Si hay más de una coincidencia en partidas o subpartidas, mostrar la página de resultados
-    if partidas.count() > 1 or subpartidas.count() > 1:
-        return redirect(f"/arancel/resultados_busqueda/?q={query}")
-
-    # Si hay una sola partida
-    if partidas.count() == 1:
-        partida = partidas.first()
+    # --- Búsqueda EXACTA para redirección 1-a-1 ---
+    # (Cambiamos __icontains por búsquedas exactas o 'startswith' para ser más precisos)
+    partidas_exactas = Partida.objects.filter(codigo=query)
+    subpartidas_exactas = Subpartida.objects.filter(codigo=query)
+    
+    # Si hay una sola partida EXACTA
+    if partidas_exactas.count() == 1 and subpartidas_exactas.count() == 0:
+        partida = partidas_exactas.first()
         HistorialBusqueda.objects.create(
-            usuario=request.user,
-            termino_busqueda=query,
-            tipo_resultado='Partida',
-            id_resultado=partida.id
+            usuario=request.user, termino_busqueda=query,
+            tipo_resultado='Partida', id_resultado=partida.id
         )
         return redirect('arancel:partida_detail', pk=partida.id)
 
-    # Si hay una sola subpartida
-    if subpartidas.count() == 1:
-        subpartida = subpartidas.first()
+    # Si hay una sola subpartida EXACTA
+    if subpartidas_exactas.count() == 1 and partidas_exactas.count() == 0:
+        subpartida = subpartidas_exactas.first()
+        # ... (Tu lógica de historial y redirect a subpartida)
         if is_descriptive_code(subpartida.codigo):
             HistorialBusqueda.objects.create(
-                usuario=request.user,
-                termino_busqueda=query,
-                tipo_resultado='Subpartida',
-                id_resultado=subpartida.id
+                usuario=request.user, termino_busqueda=query,
+                tipo_resultado='Subpartida', id_resultado=subpartida.id
             )
             return redirect(f'/arancel/partidas/{subpartida.partida.id}/?highlight={subpartida.id}')
         else:
             HistorialBusqueda.objects.create(
-                usuario=request.user,
-                termino_busqueda=query,
-                tipo_resultado='Subpartida',
-                id_resultado=subpartida.id
+                usuario=request.user, termino_busqueda=query,
+                tipo_resultado='Subpartida', id_resultado=subpartida.id
             )
             return redirect('arancel:subpartida_detail', pk=subpartida.id)
 
-    # Buscar por código o nombre en capítulos
-    capitulo = Capitulo.objects.filter(models.Q(codigo__icontains=query) | models.Q(nombre__icontains=query)).first()
+    # Búsqueda exacta en Capítulos y Secciones
+    capitulo = Capitulo.objects.filter(Q(codigo=query) | Q(nombre__iexact=query)).first()
     if capitulo:
         HistorialBusqueda.objects.create(
-            usuario=request.user,
-            termino_busqueda=query,
-            tipo_resultado='Capítulo',
-            id_resultado=capitulo.id
+            usuario=request.user, termino_busqueda=query,
+            tipo_resultado='Capítulo', id_resultado=capitulo.id
         )
         return redirect('arancel:capitulo_detail', pk=capitulo.id)
 
-    # Buscar por nombre en secciones
-    seccion = Seccion.objects.filter(models.Q(nombre__icontains=query) | models.Q(descripcion__icontains=query)).first()
+    seccion = Seccion.objects.filter(nombre__iexact=query).first()
     if seccion:
         HistorialBusqueda.objects.create(
-            usuario=request.user,
-            termino_busqueda=query,
-            tipo_resultado='Sección',
-            id_resultado=seccion.id
+            usuario=request.user, termino_busqueda=query,
+            tipo_resultado='Sección', id_resultado=seccion.id
         )
         return redirect('arancel:seccion_detail', pk=seccion.id)
 
-    # Si no se encuentra nada, guardar búsqueda sin resultado
-    HistorialBusqueda.objects.create(
-        usuario=request.user,
-        termino_busqueda=query,
-        tipo_resultado='Sin resultado'
-    )
-
-    messages.error(request, 'No se encontró ningún resultado para tu búsqueda.')
-    return redirect(request.META.get('HTTP_REFERER', '/'))
+    # --- Si no hay NINGUNA coincidencia exacta 1-a-1 ---
+    # Redirigir a la página de resultados. 
+    # Esta página se encargará de buscar por __icontains Y de buscar sugerencias.
+    return redirect(f"/arancel/resultados_busqueda/?q={query}")
 
 @require_GET
 def autocomplete_arancel(request):
@@ -578,20 +567,126 @@ def autocomplete_arancel(request):
     return JsonResponse(results, safe=False)
 
 @login_required
+@login_required
+def prevalidacion_view(request):
+    """Vista para la página de pre-validación de requisitos."""
+    return render(request, 'arancel/prevalidacion.html')
+
+@login_required
+@require_GET
+def prevalidacion_api(request, codigo):
+    """API para obtener información de pre-validación de un código arancelario."""
+    try:
+        # Intentar encontrar primero como subpartida
+        subpartida = Subpartida.objects.get(codigo=codigo)
+        
+        response_data = {
+            'codigo': subpartida.codigo,
+            'descripcion': subpartida.descripcion,
+            'requiere_permiso': subpartida.requiere_permiso,
+            'detalle_permiso': subpartida.detalle_permiso,
+            'entidad_permiso': subpartida.entidad_permiso,
+            'requiere_licencia': subpartida.requiere_licencia,
+            'detalle_licencia': subpartida.detalle_licencia,
+            'entidad_licencia': subpartida.entidad_licencia,
+            'requiere_cupo': subpartida.requiere_cupo,
+            'detalle_cupo': subpartida.detalle_cupo,
+            'entidad_cupo': subpartida.entidad_cupo,
+            'instrucciones_validacion': subpartida.instrucciones_validacion,
+            'tipo_de_doc': subpartida.tipo_de_doc,
+            'entidad_que_emite': subpartida.entidad_que_emite,
+            'disposicion_legal': subpartida.disposicion_legal,
+        }
+        
+        return JsonResponse(response_data)
+        
+    except ObjectDoesNotExist:
+        return JsonResponse({
+            'error': 'Código arancelario no encontrado'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Error al procesar la solicitud: {str(e)}'
+        }, status=500)
+
 def resultados_busqueda(request):
     query = request.GET.get('q', '').strip()
-    subpartidas = Subpartida.objects.filter(models.Q(codigo__icontains=query) | models.Q(descripcion__icontains=query))
-    partidas = Partida.objects.filter(models.Q(codigo__icontains=query) | models.Q(descripcion__icontains=query))
-    # Registrar en historial si hay búsqueda y usuario autenticado
+    
+    # 1. Búsqueda normal con __icontains
+    partidas = Partida.objects.filter(Q(codigo__icontains=query) | Q(descripcion__icontains=query))
+    subpartidas = Subpartida.objects.filter(Q(codigo__icontains=query) | Q(descripcion__icontains=query))
+    
+    total_results = partidas.count() + subpartidas.count()
+    
+    sugerencias_codigos = []
+    sugerencias_desc = []
+    
+    # 2. Si no hay resultados, ¡activar búsqueda "fuzzy" con difflib!
+    if total_results == 0 and query:
+        
+        # Criterio 1: Corrección de Código Arancelario
+        # (Usamos tu import 'get_close_matches' que ya tienes)
+        es_codigo = any(char.isdigit() for char in query)
+        if es_codigo:
+            # Traemos todos los códigos a memoria. (Advertencia: Lento)
+            todos_codigos_partida = list(Partida.objects.values_list('codigo', flat=True))
+            todos_codigos_subpartida = list(Subpartida.objects.values_list('codigo', flat=True))
+            todos_los_codigos = todos_codigos_partida + todos_codigos_subpartida
+            
+            # Usamos get_close_matches. Es simple y directo.
+            # n=5 (trae 5 sugerencias), cutoff=0.8 (80% de similitud)
+            resultados_codigos = get_close_matches(query, todos_los_codigos, n=5, cutoff=0.8)
+            
+            if resultados_codigos:
+                sugerencias_codigos = Subpartida.objects.filter(codigo__in=resultados_codigos).union(
+                                        Partida.objects.filter(codigo__in=resultados_codigos)
+                                      )
+
+        # Criterio 2: Alternativas de Descripción (si no es un código o no hubo sugerencias de código)
+        if not es_codigo or not sugerencias_codigos:
+            
+            # ⚠️ ADVERTENCIA: Esta parte es MUY lenta en SQLite.
+            # Carga todas las descripciones a memoria.
+            desc_map_partidas = {p.descripcion: p for p in Partida.objects.all()}
+            desc_map_subpartidas = {s.descripcion: s for s in Subpartida.objects.all()}
+            
+            # Unimos los textos de las descripciones
+            todas_las_descripciones = list(desc_map_partidas.keys()) + list(desc_map_subpartidas.keys())
+            
+            # Buscamos sugerencias. Usamos un cutoff más bajo (ej: 60%) para descripciones.
+            resultados_desc = get_close_matches(query, todas_las_descripciones, n=5, cutoff=0.6)
+            
+            sugerencias_desc_obj = []
+            for desc_texto in resultados_desc:
+                if desc_texto in desc_map_partidas:
+                    sugerencias_desc_obj.append(desc_map_partidas[desc_texto])
+                elif desc_texto in desc_map_subpartidas:
+                    sugerencias_desc_obj.append(desc_map_subpartidas[desc_texto])
+            
+            sugerencias_desc = sugerencias_desc_obj
+
+
+    # 3. Registrar en historial (ahora la lógica está en el lugar correcto)
     if query and request.user.is_authenticated:
-        HistorialBusqueda.objects.create(
-            usuario=request.user,
-            termino_busqueda=query,
-            tipo_resultado='Resultados múltiples',
-            id_resultado=None
-        )
+        tipo_resultado = 'Resultados múltiples'
+        if total_results == 0 and not sugerencias_codigos and not sugerencias_desc:
+            # Solo si no hay resultados Y TAMPOCO sugerencias
+            tipo_resultado = 'Sin resultado'
+        
+        # Evitar duplicados si el usuario recarga
+        if not HistorialBusqueda.objects.filter(usuario=request.user, termino_busqueda=query).exists():
+            HistorialBusqueda.objects.create(
+                usuario=request.user,
+                termino_busqueda=query,
+                tipo_resultado=tipo_resultado,
+                id_resultado=None
+            )
+            
+    # 4. Renderizar la página
     return render(request, 'arancel/resultados_busqueda.html', {
         'query': query,
-        'subpartidas': subpartidas,
         'partidas': partidas,
+        'subpartidas': subpartidas,
+        'sugerencias_codigos': sugerencias_codigos,   # <-- ¡Nuevos!
+        'sugerencias_desc': sugerencias_desc,       # <-- ¡Nuevos!
     })
