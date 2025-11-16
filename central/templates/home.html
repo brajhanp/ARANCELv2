@@ -173,6 +173,37 @@
             </div>
         </div>
     </div>
+
+    <!-- APARTADO DE REPORTES DE TRAZABILIDAD -->
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-success">
+                <div class="card-header bg-success bg-opacity-10">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-alt me-2"></i>
+                        Reportes de Trazabilidad
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        Genera reportes detallados de todas las operaciones realizadas en el sistema.
+                        Incluye fecha, hora, usuario, código arancelario, resultado y acción realizada.
+                    </p>
+                    <div class="d-flex flex-wrap justify-content-center gap-2">
+                        <a href="{% url 'central:reporte_list' %}" class="btn btn-success">
+                            <i class="fas fa-file-alt me-2"></i>Ver Reportes
+                        </a>
+                        <a href="{% url 'central:exportar_reportes' %}?format=excel" class="btn btn-success">
+                            <i class="fas fa-file-excel me-2"></i>Descargar Excel
+                        </a>
+                        <a href="{% url 'central:exportar_reportes' %}?format=pdf" class="btn btn-danger">
+                            <i class="fas fa-file-pdf me-2"></i>Descargar PDF
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 <script>
 // Autocompletado AJAX para dashboard

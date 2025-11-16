@@ -28,6 +28,55 @@ class HistorialBusquedaFilterForm(forms.Form):
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Buscar término...'})
     )
 
+
+class ReporteFilterForm(forms.Form):
+    """Formulario para filtrar reportes de trazabilidad"""
+    fecha_inicio = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+        label='Fecha Inicio'
+    )
+    fecha_fin = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+        label='Fecha Fin'
+    )
+    usuario = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre de usuario...'}),
+        label='Usuario'
+    )
+    codigo_arancelario = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 6204.62...'}),
+        label='Código Arancelario'
+    )
+    tipo_accion = forms.ChoiceField(
+        required=False,
+        choices=[
+            ('', 'Todas las acciones'),
+            ('búsqueda', 'Búsqueda de Código'),
+            ('consulta_detalle', 'Consulta de Detalle'),
+            ('clasificación', 'Clasificación Realizada'),
+            ('modificación', 'Modificación de Clasificación'),
+            ('descarga_doc', 'Descarga de Documento'),
+        ],
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Tipo de Operación'
+    )
+    resultado_operacion = forms.ChoiceField(
+        required=False,
+        choices=[
+            ('', 'Todos los resultados'),
+            ('exitosa', 'Exitosa'),
+            ('con_advertencia', 'Con Advertencia'),
+            ('rechazada', 'Rechazada'),
+            ('pendiente', 'Pendiente'),
+        ],
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Resultado'
+    )
+
 class RegistroUsuarioForm(forms.ModelForm):
     password = forms.CharField(
         label='Contraseña',

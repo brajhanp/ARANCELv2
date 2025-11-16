@@ -11,7 +11,7 @@ from django.db import models
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_GET
-from central.models import HistorialBusqueda
+from central.models import HistorialBusqueda, Reporte
 from arancel.templatetags.custom_filters import is_descriptive_code
 from difflib import get_close_matches
 from difflib import get_close_matches
@@ -27,6 +27,22 @@ def _clean_text_for_json(value):
         return str(value).replace('_', ' ')
     except Exception:
         return str(value)
+
+# Utilidad: Crear reporte de trazabilidad automáticamente
+def _crear_reporte_busqueda(usuario, codigo, descripcion, tipo_accion, resultado='exitosa'):
+    """Crea un registro de trazabilidad sin afectar el flujo de la aplicación."""
+    try:
+        Reporte.objects.create(
+            usuario=usuario,
+            codigo_arancelario=codigo,
+            descripcion_clasificacion=descripcion[:500],  # Limitar a 500 caracteres
+            tipo_accion=tipo_accion,
+            resultado_operacion=resultado,
+            detalles_adicionales=f'Búsqueda automática: {tipo_accion}'
+        )
+    except Exception:
+        pass  # Si falla la creación de reporte, no afecta el flujo normal
+
 
 @method_decorator(login_required, name='dispatch')
 class SeccionListView(ListView):
@@ -153,6 +169,13 @@ def buscador_global(request):
             usuario=request.user, termino_busqueda=query,
             tipo_resultado='Partida', id_resultado=partida.id
         )
+        # Crear reporte de trazabilidad
+        _crear_reporte_busqueda(
+            request.user, 
+            partida.codigo, 
+            partida.descripcion, 
+            'consulta_detalle'
+        )
         return redirect('arancel:partida_detail', pk=partida.id)
 
     # Si hay una sola subpartida EXACTA
@@ -164,11 +187,25 @@ def buscador_global(request):
                 usuario=request.user, termino_busqueda=query,
                 tipo_resultado='Subpartida', id_resultado=subpartida.id
             )
+            # Crear reporte de trazabilidad
+            _crear_reporte_busqueda(
+                request.user,
+                subpartida.codigo,
+                subpartida.descripcion,
+                'consulta_detalle'
+            )
             return redirect(f'/arancel/partidas/{subpartida.partida.id}/?highlight={subpartida.id}')
         else:
             HistorialBusqueda.objects.create(
                 usuario=request.user, termino_busqueda=query,
                 tipo_resultado='Subpartida', id_resultado=subpartida.id
+            )
+            # Crear reporte de trazabilidad
+            _crear_reporte_busqueda(
+                request.user,
+                subpartida.codigo,
+                subpartida.descripcion,
+                'consulta_detalle'
             )
             return redirect('arancel:subpartida_detail', pk=subpartida.id)
 
@@ -179,6 +216,13 @@ def buscador_global(request):
             usuario=request.user, termino_busqueda=query,
             tipo_resultado='Capítulo', id_resultado=capitulo.id
         )
+        # Crear reporte de trazabilidad
+        _crear_reporte_busqueda(
+            request.user,
+            capitulo.codigo,
+            capitulo.nombre,
+            'consulta_detalle'
+        )
         return redirect('arancel:capitulo_detail', pk=capitulo.id)
 
     seccion = Seccion.objects.filter(nombre__iexact=query).first()
@@ -186,6 +230,13 @@ def buscador_global(request):
         HistorialBusqueda.objects.create(
             usuario=request.user, termino_busqueda=query,
             tipo_resultado='Sección', id_resultado=seccion.id
+        )
+        # Crear reporte de trazabilidad
+        _crear_reporte_busqueda(
+            request.user,
+            '',  # Las secciones no tienen código
+            seccion.nombre,
+            'consulta_detalle'
         )
         return redirect('arancel:seccion_detail', pk=seccion.id)
 
@@ -579,6 +630,14 @@ def prevalidacion_api(request, codigo):
     try:
         # Intentar encontrar primero como subpartida
         subpartida = Subpartida.objects.get(codigo=codigo)
+        
+        # Crear reporte de trazabilidad
+        _crear_reporte_busqueda(
+            request.user,
+            subpartida.codigo,
+            subpartida.descripcion,
+            'consulta_detalle'
+        )
         
         response_data = {
             'codigo': subpartida.codigo,

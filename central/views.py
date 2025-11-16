@@ -14,11 +14,13 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from io import BytesIO
-from .forms import HistorialBusquedaFilterForm
+from .forms import HistorialBusquedaFilterForm, ReporteFilterForm
 from django.contrib.auth.forms import UserCreationForm
 from arancel.models import Seccion, Capitulo, Partida, Subpartida
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils.decorators import method_decorator
+from .models import HistorialBusqueda, Rol, PerfilUsuario, Reporte
+from django.db.models import Avg, Max, Min
 from .models import HistorialBusqueda, Rol, PerfilUsuario
 from .forms import RegistroUsuarioForm
 from django.contrib.auth.decorators import permission_required
@@ -279,9 +281,54 @@ class HistorialBusquedaListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['form'] = HistorialBusquedaFilterForm(self.request.GET)
+        
+        # Crear reporte cuando acceden a ver historial
+        try:
+            Reporte.objects.create(
+                usuario=self.request.user,
+                codigo_arancelario='',
+                descripcion_clasificacion='Acceso a apartado de Historial de Búsquedas',
+                tipo_accion='consulta_detalle',
+                resultado_operacion='exitosa',
+                detalles_adicionales='Usuario consultó el historial de búsquedas'
+            )
+        except Exception:
+            pass  # No bloquea si falla
+        
         return context
 
+@login_required
 def exportar_historial(request):
+    """Exporta historial de búsquedas a PDF o Excel"""
+    format_type = request.GET.get('format', 'pdf')
+    
+    # Crear reporte de trazabilidad para la descarga del historial
+    # Pero verificar si ya existe uno igual en el último segundo para evitar duplicados
+    try:
+        ahora = timezone.now()
+        hace_un_segundo = ahora - timezone.timedelta(seconds=1)
+        
+        # Verificar si ya existe un reporte igual reciente
+        reporte_reciente = Reporte.objects.filter(
+            usuario=request.user,
+            codigo_arancelario='HISTORIAL',
+            tipo_accion='descarga_doc',
+            fecha_operacion__gte=hace_un_segundo
+        ).exists()
+        
+        # Solo crear si no existe uno reciente
+        if not reporte_reciente:
+            Reporte.objects.create(
+                usuario=request.user,
+                codigo_arancelario='HISTORIAL',
+                descripcion_clasificacion=f'Descarga de historial de búsquedas en formato {format_type.upper()}',
+                tipo_accion='descarga_doc',
+                resultado_operacion='exitosa',
+                detalles_adicionales=f'Usuario descargó historial de búsquedas en formato {format_type}'
+            )
+    except Exception:
+        pass  # Si falla, continúa con la descarga normalmente
+    
     # Obtener los datos filtrados
     queryset = HistorialBusqueda.objects.all()
     form = HistorialBusquedaFilterForm(request.GET)
@@ -298,8 +345,6 @@ def exportar_historial(request):
                 Q(termino_busqueda__icontains=form.cleaned_data['palabra_clave']) |
                 Q(usuario__username__icontains=form.cleaned_data['palabra_clave'])
             )
-
-    format_type = request.GET.get('format', 'pdf')
 
     if format_type == 'excel':
         # Crear un nuevo libro de Excel
@@ -377,8 +422,23 @@ def exportar_historial(request):
         return response
 
 @login_required
+@login_required
 def estadisticas_gravamenes(request):
     """Vista para mostrar estadísticas de gravámenes arancelarios por capítulo"""
+    
+    # Crear reporte de trazabilidad cuando acceden a gravámenes
+    try:
+        Reporte.objects.create(
+            usuario=request.user,
+            codigo_arancelario='',
+            descripcion_clasificacion='Acceso a apartado de Estadísticas de Gravámenes',
+            tipo_accion='consulta_detalle',
+            resultado_operacion='exitosa',
+            detalles_adicionales='Usuario consultó estadísticas de gravámenes arancelarios'
+        )
+    except Exception:
+        pass  # No bloquea si falla
+    
     # Obtener todos los capítulos
     capitulos = Capitulo.objects.all().order_by('codigo')
     
@@ -413,3 +473,140 @@ def estadisticas_gravamenes(request):
     return render(request, 'central/estadisticas_gravamenes.html', {
         'estadisticas': estadisticas_por_capitulo,
     })
+
+
+# ============= VISTAS PARA REPORTES DE TRAZABILIDAD =============
+
+class ReporteListView(LoginRequiredMixin, ListView):
+    """Lista reportes de trazabilidad con filtros avanzados"""
+    model = Reporte
+    template_name = 'central/reporte_list.html'
+    context_object_name = 'reportes'
+    paginate_by = 50
+
+    def get_queryset(self):
+        queryset = Reporte.objects.all().select_related('usuario')
+        form = ReporteFilterForm(self.request.GET)
+        
+        if form.is_valid():
+            if form.cleaned_data.get('fecha_inicio'):
+                queryset = queryset.filter(fecha_operacion__date__gte=form.cleaned_data['fecha_inicio'])
+            if form.cleaned_data.get('fecha_fin'):
+                queryset = queryset.filter(fecha_operacion__date__lte=form.cleaned_data['fecha_fin'])
+            if form.cleaned_data.get('usuario'):
+                queryset = queryset.filter(usuario__username__icontains=form.cleaned_data['usuario'])
+            if form.cleaned_data.get('codigo_arancelario'):
+                queryset = queryset.filter(codigo_arancelario__icontains=form.cleaned_data['codigo_arancelario'])
+            if form.cleaned_data.get('tipo_accion'):
+                queryset = queryset.filter(tipo_accion=form.cleaned_data['tipo_accion'])
+            if form.cleaned_data.get('resultado_operacion'):
+                queryset = queryset.filter(resultado_operacion=form.cleaned_data['resultado_operacion'])
+        
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['form'] = ReporteFilterForm(self.request.GET)
+        context['total_reportes'] = self.get_queryset().count()
+        return context
+
+
+@login_required
+@login_required
+def exportar_reportes(request):
+    """Exporta reportes de trazabilidad a PDF o Excel"""
+    queryset = Reporte.objects.all().select_related('usuario')
+    form = ReporteFilterForm(request.GET)
+    
+    if form.is_valid():
+        if form.cleaned_data.get('fecha_inicio'):
+            queryset = queryset.filter(fecha_operacion__date__gte=form.cleaned_data['fecha_inicio'])
+        if form.cleaned_data.get('fecha_fin'):
+            queryset = queryset.filter(fecha_operacion__date__lte=form.cleaned_data['fecha_fin'])
+        if form.cleaned_data.get('usuario'):
+            queryset = queryset.filter(usuario__username__icontains=form.cleaned_data['usuario'])
+        if form.cleaned_data.get('codigo_arancelario'):
+            queryset = queryset.filter(codigo_arancelario__icontains=form.cleaned_data['codigo_arancelario'])
+        if form.cleaned_data.get('tipo_accion'):
+            queryset = queryset.filter(tipo_accion=form.cleaned_data['tipo_accion'])
+        if form.cleaned_data.get('resultado_operacion'):
+            queryset = queryset.filter(resultado_operacion=form.cleaned_data['resultado_operacion'])
+
+    format_type = request.GET.get('format', 'pdf')
+
+    if format_type == 'excel':
+        # Crear Excel con reportes
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Reportes de Trazabilidad"
+
+        # Encabezados
+        headers = ['Fecha', 'Hora', 'Usuario', 'Código Arancelario', 'Descripción', 'Tipo de Acción', 'Resultado', 'Detalles']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col)
+            cell.value = header
+            cell.font = Font(bold=True)
+
+        # Datos
+        for row, reporte in enumerate(queryset, 2):
+            ws.cell(row=row, column=1).value = reporte.fecha_operacion.strftime('%d/%m/%Y')
+            ws.cell(row=row, column=2).value = reporte.fecha_operacion.strftime('%H:%M:%S')
+            ws.cell(row=row, column=3).value = reporte.usuario.username
+            ws.cell(row=row, column=4).value = reporte.codigo_arancelario or '--'
+            ws.cell(row=row, column=5).value = reporte.descripcion_clasificacion or '--'
+            ws.cell(row=row, column=6).value = dict(reporte.TIPO_ACCION_CHOICES).get(reporte.tipo_accion, reporte.tipo_accion)
+            ws.cell(row=row, column=7).value = dict(reporte._meta.get_field('resultado_operacion').choices).get(reporte.resultado_operacion)
+            ws.cell(row=row, column=8).value = reporte.detalles_adicionales or ''
+
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename=reportes_trazabilidad.xlsx'
+        wb.save(response)
+        return response
+
+    else:  # PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*72, bottomMargin=0.5*72)
+        elements = []
+
+        styles = getSampleStyleSheet()
+        elements.append(Paragraph('Reporte de Trazabilidad Completo', styles['Heading1']))
+        elements.append(Paragraph(f'Generado el {timezone.now().strftime("%d/%m/%Y %H:%M:%S")}', styles['Normal']))
+        elements.append(Paragraph('', styles['Normal']))
+
+        # Tabla PDF
+        data = [['Fecha', 'Hora', 'Usuario', 'Código', 'Acción', 'Resultado']]
+        for reporte in queryset:
+            data.append([
+                reporte.fecha_operacion.strftime('%d/%m/%Y'),
+                reporte.fecha_operacion.strftime('%H:%M:%S'),
+                reporte.usuario.username,
+                reporte.codigo_arancelario or '--',
+                dict(reporte.TIPO_ACCION_CHOICES).get(reporte.tipo_accion, reporte.tipo_accion)[:15],
+                dict(reporte._meta.get_field('resultado_operacion').choices).get(reporte.resultado_operacion)
+            ])
+
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+        ]))
+        elements.append(table)
+
+        doc.build(elements)
+        pdf = buffer.getvalue()
+        buffer.close()
+
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename=reportes_trazabilidad.pdf'
+        response.write(pdf)
+        return response

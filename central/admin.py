@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import HistorialBusqueda, Rol, PerfilUsuario
+from .models import HistorialBusqueda, Rol, PerfilUsuario, Reporte
 
 # Register your models here.
 @admin.register(Rol)
@@ -24,3 +24,26 @@ class HistorialBusquedaAdmin(admin.ModelAdmin):
     search_fields = ['termino_busqueda', 'usuario__username']
     readonly_fields = ['fecha_busqueda']
     ordering = ['-fecha_busqueda']
+
+@admin.register(Reporte)
+class ReporteAdmin(admin.ModelAdmin):
+    list_display = ['usuario', 'codigo_arancelario', 'tipo_accion', 'resultado_operacion', 'fecha_operacion']
+    list_filter = ['tipo_accion', 'resultado_operacion', 'fecha_operacion', 'usuario']
+    search_fields = ['codigo_arancelario', 'usuario__username', 'descripcion_clasificacion']
+    readonly_fields = ['fecha_operacion']
+    ordering = ['-fecha_operacion']
+    date_hierarchy = 'fecha_operacion'
+    fieldsets = (
+        ('Información del Usuario', {
+            'fields': ('usuario',)
+        }),
+        ('Operación Arancelaria', {
+            'fields': ('codigo_arancelario', 'descripcion_clasificacion', 'tipo_accion')
+        }),
+        ('Resultado', {
+            'fields': ('resultado_operacion', 'detalles_adicionales')
+        }),
+        ('Auditoría', {
+            'fields': ('fecha_operacion',)
+        }),
+    )

@@ -44,3 +44,40 @@ class HistorialBusqueda(models.Model):
     
     def __str__(self):
         return f"{self.usuario.username} - {self.termino_busqueda} ({self.fecha_busqueda.strftime('%d/%m/%Y %H:%M')})"
+
+
+class Reporte(models.Model):
+    """Modelo para registrar operaciones de trazabilidad en clasificación arancelaria"""
+    TIPO_ACCION_CHOICES = [
+        ('búsqueda', 'Búsqueda de Código'),
+        ('consulta_detalle', 'Consulta de Detalle'),
+        ('clasificación', 'Clasificación Realizada'),
+        ('modificación', 'Modificación de Clasificación'),
+        ('descarga_doc', 'Descarga de Documento'),
+    ]
+    
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reportes')
+    fecha_operacion = models.DateTimeField(auto_now_add=True, db_index=True)
+    codigo_arancelario = models.CharField(max_length=13, blank=True, null=True, db_index=True)
+    descripcion_clasificacion = models.TextField(blank=True, null=True)
+    tipo_accion = models.CharField(max_length=50, choices=TIPO_ACCION_CHOICES, db_index=True)
+    resultado_operacion = models.CharField(max_length=50, choices=[
+        ('exitosa', 'Exitosa'),
+        ('con_advertencia', 'Con Advertencia'),
+        ('rechazada', 'Rechazada'),
+        ('pendiente', 'Pendiente'),
+    ], default='exitosa')
+    detalles_adicionales = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['-fecha_operacion']
+        verbose_name = 'Reporte de Trazabilidad'
+        verbose_name_plural = 'Reportes de Trazabilidad'
+        indexes = [
+            models.Index(fields=['usuario', '-fecha_operacion']),
+            models.Index(fields=['codigo_arancelario', '-fecha_operacion']),
+            models.Index(fields=['tipo_accion', '-fecha_operacion']),
+        ]
+    
+    def __str__(self):
+        return f"{self.usuario.username} - {self.codigo_arancelario} ({self.fecha_operacion.strftime('%d/%m/%Y %H:%M')})"
