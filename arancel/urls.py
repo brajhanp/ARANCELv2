@@ -1,11 +1,18 @@
 from django.urls import path
-from .views import tabla_aranceles, SeccionListView, SeccionCreateView, SeccionUpdateView, SeccionDeleteView, SeccionDetailView, CapituloDetailView, PartidaDetailView, SubpartidaDetailView, buscador_global, autocomplete_arancel, resultados_busqueda
+from .views import (
+    tabla_aranceles, SeccionListView, SeccionCreateView, SeccionUpdateView,
+    SeccionDeleteView, SeccionDetailView, CapituloDetailView, PartidaDetailView,
+    SubpartidaDetailView, buscador_global, autocomplete_arancel, resultados_busqueda,
+    prevalidacion_view, prevalidacion_api
+)
 
 app_name = 'arancel'
 
 urlpatterns = [
     path('', tabla_aranceles, name='tabla_aranceles'),
     path('tabla/', tabla_aranceles, name='tabla_aranceles'),
+    path('prevalidacion/', prevalidacion_view, name='prevalidacion'),
+    path('api/prevalidacion/<str:codigo>/', prevalidacion_api, name='prevalidacion_api'),
 
     # CRUD Seccion
     path('secciones/', SeccionListView.as_view(), name='seccion_list'),

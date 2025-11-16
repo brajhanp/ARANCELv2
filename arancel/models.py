@@ -65,6 +65,39 @@ class Subpartida(models.Model):
     tipo_de_doc = models.CharField(max_length=255, blank=True, null=True)  # Tipo de Doc
     entidad_que_emite = models.CharField(max_length=255, blank=True, null=True)  # Entidad que emite
     disposicion_legal = models.CharField(max_length=255, blank=True, null=True)  # Disp. Legal
+    
+    # Campos para requisitos adicionales de pre-validación
+    requiere_permiso = models.BooleanField(default=False)
+    detalle_permiso = models.TextField(blank=True, null=True)
+    entidad_permiso = models.CharField(max_length=255, blank=True, null=True)
+    estado_permiso = models.CharField(max_length=20, choices=[
+        ('pendiente', 'Pendiente'),
+        ('en_proceso', 'En Proceso'),
+        ('completado', 'Completado'),
+        ('no_aplica', 'No Aplica')
+    ], default='no_aplica')
+    
+    requiere_licencia = models.BooleanField(default=False)
+    detalle_licencia = models.TextField(blank=True, null=True)
+    entidad_licencia = models.CharField(max_length=255, blank=True, null=True)
+    estado_licencia = models.CharField(max_length=20, choices=[
+        ('pendiente', 'Pendiente'),
+        ('en_proceso', 'En Proceso'),
+        ('completado', 'Completado'),
+        ('no_aplica', 'No Aplica')
+    ], default='no_aplica')
+    
+    requiere_cupo = models.BooleanField(default=False)
+    detalle_cupo = models.TextField(blank=True, null=True)
+    entidad_cupo = models.CharField(max_length=255, blank=True, null=True)
+    estado_cupo = models.CharField(max_length=20, choices=[
+        ('pendiente', 'Pendiente'),
+        ('en_proceso', 'En Proceso'),
+        ('completado', 'Completado'),
+        ('no_aplica', 'No Aplica')
+    ], default='no_aplica')
+    
+    instrucciones_validacion = models.TextField(blank=True, null=True)  # Instrucciones específicas para completar requisitos
 
     # Campos para "Preferencia Arancelaria"
     can_ace_36_47_ven = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)  # CAN ACE 36 ACE 47 VEN

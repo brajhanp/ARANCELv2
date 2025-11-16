@@ -15,9 +15,17 @@
                     <i class="fas fa-list-ol me-2"></i>
                     Detalles de la Partida
                 </h4>
-                <a href="{% url 'arancel:capitulo_detail' partida.capitulo.id %}" class="btn btn-outline-dark btn-sm">
-                    <i class="fas fa-book me-1"></i> Ver Capítulo
-                </a>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary btn-sm btn-copiar" 
+                            data-codigo="{{ partida.codigo }}" 
+                            data-descripcion="{{ partida.descripcion|replace_none }}"
+                            title="Copiar código y descripción">
+                        <i class="fas fa-copy me-1"></i>Copiar código y descripción
+                    </button>
+                    <a href="{% url 'arancel:capitulo_detail' partida.capitulo.id %}" class="btn btn-outline-dark btn-sm">
+                        <i class="fas fa-book me-1"></i> Ver Capítulo
+                    </a>
+                </div>
             </div>
             <div class="card-body">
                 <dl class="row">
@@ -62,7 +70,15 @@
                                         <span class="badge bg-info me-2"><i class="fas fa-table me-1"></i>Subpartida</span>
                                         <strong>{{ subpartida.codigo|replace_none }}</strong> - {{ subpartida.descripcion|replace_none|truncatechars:60 }}
                                     </span>
-                                    <a href="{% url 'arancel:subpartida_detail' subpartida.id %}" class="btn btn-sm btn-info">Ver</a>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-primary btn-sm btn-copiar" 
+                                                data-codigo="{{ subpartida.codigo|replace_none }}" 
+                                                data-descripcion="{{ subpartida.descripcion|replace_none }}"
+                                                title="Copiar código y descripción">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                        <a href="{% url 'arancel:subpartida_detail' subpartida.id %}" class="btn btn-sm btn-info">Ver</a>
+                                    </div>
                                 </li>
                             {% endif %}
                         {% endif %}
@@ -102,4 +118,63 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Función para copiar código y descripción al portapapeles
+    function copiarCodigoDescripcion(codigo, descripcion) {
+        // Formato estándar: CÓDIGO - Descripción
+        const texto = codigo + ' - ' + descripcion;
+        
+        // Usar la API del portapapeles
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(texto).then(function() {
+                // Éxito - el feedback visual se maneja en el event listener
+            }).catch(function(err) {
+                console.error('Error al copiar:', err);
+                alert('Error al copiar al portapapeles. Por favor, copia manualmente: ' + texto);
+            });
+        } else {
+            // Fallback para navegadores antiguos
+            const textarea = document.createElement('textarea');
+            textarea.value = texto;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                alert('Copiado: ' + texto);
+            } catch (err) {
+                alert('Error al copiar. Por favor, copia manualmente: ' + texto);
+            }
+            document.body.removeChild(textarea);
+        }
+    }
+    
+    // Agregar event listeners a todos los botones de copiar
+    document.querySelectorAll('.btn-copiar').forEach(function(boton) {
+        boton.addEventListener('click', function() {
+            const codigo = this.getAttribute('data-codigo');
+            const descripcion = this.getAttribute('data-descripcion');
+            
+            if (codigo && descripcion) {
+                copiarCodigoDescripcion(codigo, descripcion);
+                
+                // Feedback visual
+                const originalHTML = this.innerHTML;
+                const originalClass = this.className;
+                this.innerHTML = '<i class="fas fa-check"></i>';
+                this.classList.remove('btn-primary');
+                this.classList.add('btn-success');
+                
+                setTimeout(function() {
+                    boton.innerHTML = originalHTML;
+                    boton.className = originalClass;
+                }, 2000);
+            }
+        });
+    });
+});
+</script>
 {% endblock %} 

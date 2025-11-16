@@ -5,6 +5,7 @@
         <i class="fas fa-arrow-left me-2"></i>Volver al Dashboard
     </a>
 </div>
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -59,246 +60,136 @@
     </style>
 </head>
 <body>
-    <div class="container mb-4">
-        <div class="row justify-content-center">
-            <div class="col-md-8 position-relative">
-                <form class="d-flex" method="get" onsubmit="buscarYScroll(event)">
-                    <input class="form-control me-2" type="search" id="busqueda-arancel" name="q" placeholder="Buscar código o descripción..." aria-label="Buscar" autocomplete="off" value="{{ request.GET.q|default:'' }}">
-                    <button class="search-btn-custom" type="submit"><i class="fas fa-arrow-right"></i></button>
-                </form>
-                <ul id="sugerencias-autocomplete" class="list-group position-absolute w-100" style="z-index: 1000;"></ul>
-            </div>
-        </div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="mb-0">Tabla de Aranceles</h1>
+        <!-- 🔹 Botón de copiar -->
+        <button id="copiar-aranceles" class="btn btn-outline-primary">
+            <i class="fas fa-copy me-2"></i>Copiar Aranceles
+        </button>
     </div>
-    <h1>Tabla de Aranceles</h1>
-    {% load custom_filters %}
-    
-    {% if query %}
-    <div class="alert alert-info">
-        <i class="fas fa-search me-2"></i>
-        Resultados de búsqueda para: <strong>"{{ query }}"</strong>
-    </div>
-    {% endif %}
 
-    {% for seccion in secciones %}
-    <div class="card mb-4">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">
-                <i class="fas fa-layer-group me-2"></i>
-                Sección {{ seccion.id }}: {{ seccion.nombre|replace_none }}
-            </h5>
-            {% if seccion.descripcion %}
-            <small>{{ seccion.descripcion|replace_none }}</small>
-            {% endif %}
-        </div>
-        <div class="card-body">
-            {% for capitulo in seccion.capitulos.all %}
-            <div class="card mb-3">
-                <div class="card-header bg-success text-white">
-                    <h6 class="mb-0">
-                        <i class="fas fa-book me-2"></i>
-                        Capítulo {{ capitulo.codigo }}: {{ capitulo.nombre|replace_none }}
-                    </h6>
-                    {% if capitulo.descripcion %}
-                    <small>{{ capitulo.descripcion|replace_none }}</small>
-                    {% endif %}
-                </div>
-                <div class="card-body">
-                    {% for partida in capitulo.partidas.all %}
-                    <div class="card mb-2">
-                        <div class="card-header bg-warning text-dark">
-                            <h6 class="mb-0">
-                                <i class="fas fa-list-ol me-2"></i>
-                                Partida {{ partida.codigo }}: {{ partida.descripcion|replace_none }}
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Código</th>
-                                            <th>Descripción de la mercancía</th>
-                                            <th>GA %</th>
-                                            <th>ICE - IEHD</th>
-                                            <th>Unidad de Medida</th>
-                                            <th>Despacho en Frontera</th>
-                                            <th>Tipo de Doc</th>
-                                            <th>Entidad que emite</th>
-                                            <th>Disp. Legal</th>
-                                            <th>CAN ACE 36 ACE 47 VEN</th>
-                                            <th>ACE 22 Chi</th>
-                                            <th>ACE 22 Prot</th>
-                                            <th>ACE 66 MÉXICO</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for subpartida in partida.subpartidas.all %}
-                                            {% if subpartida.codigo|is_descriptive_code %}
-                                                <tr class="table-primary">
-                                                    <td colspan="13" class="text-center">
-                                                        <strong>{{ subpartida.descripcion|replace_none }}</strong>
-                                                    </td>
-                                                </tr>
-                                            {% else %}
-                                                <tr id="subpartida-{{ subpartida.id }}">
-                                                    <td><strong>{{ subpartida.codigo|replace_none }}</strong></td>
-                                                    <td>{{ subpartida.descripcion|replace_none|underscore_to_space }}</td>
-                                                    <td>{{ subpartida.ga|replace_none }}</td>
-                                                    <td>{{ subpartida.ice_iehd|replace_none|underscore_to_space }}</td>
-                                                    <td>{{ subpartida.unidad_medida|replace_none|underscore_to_space }}</td>
-                                                    <td>{{ subpartida.despacho_en_frontera|replace_none|underscore_to_space }}</td>
-                                                    <td>{{ subpartida.tipo_de_doc|replace_none|underscore_to_space }}</td>
-                                                    <td>{{ subpartida.entidad_que_emite|replace_none|underscore_to_space }}</td>
-                                                    <td>{{ subpartida.disposicion_legal|replace_none|underscore_to_space }}</td>
-                                                    <td>{{ subpartida.can_ace_36_47_ven|replace_none }}</td>
-                                                    <td>{{ subpartida.ace_22_chile|replace_none }}</td>
-                                                    <td>{{ subpartida.ace_22_prot|replace_none }}</td>
-                                                    <td>{{ subpartida.ace_66_mexico|replace_none }}</td>
-                                                </tr>
-                                            {% endif %}
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+    {% load custom_filters %}
+
+    <!-- 🔹 Contenedor para copiar -->
+    <div id="tabla-aranceles">
+        {% for seccion in secciones %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-layer-group me-2"></i>
+                    Sección {{ seccion.id }}: {{ seccion.nombre|replace_none }}
+                </h5>
+                {% if seccion.descripcion %}
+                <small>{{ seccion.descripcion|replace_none }}</small>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% for capitulo in seccion.capitulos.all %}
+                <div class="card mb-3">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-book me-2"></i>
+                            Capítulo {{ capitulo.codigo }}: {{ capitulo.nombre|replace_none }}
+                        </h6>
+                        {% if capitulo.descripcion %}
+                        <small>{{ capitulo.descripcion|replace_none }}</small>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        {% for partida in capitulo.partidas.all %}
+                        <div class="card mb-2">
+                            <div class="card-header bg-warning text-dark">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-list-ol me-2"></i>
+                                    Partida {{ partida.codigo }}: {{ partida.descripcion|replace_none }}
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Código</th>
+                                                <th>Descripción de la mercancía</th>
+                                                <th>GA %</th>
+                                                <th>ICE - IEHD</th>
+                                                <th>Unidad de Medida</th>
+                                                <th>Despacho en Frontera</th>
+                                                <th>Tipo de Doc</th>
+                                                <th>Entidad que emite</th>
+                                                <th>Disp. Legal</th>
+                                                <th>CAN ACE 36 ACE 47 VEN</th>
+                                                <th>ACE 22 Chi</th>
+                                                <th>ACE 22 Prot</th>
+                                                <th>ACE 66 MÉXICO</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for subpartida in partida.subpartidas.all %}
+                                                {% if subpartida.codigo|is_descriptive_code %}
+                                                    <tr class="table-primary">
+                                                        <td colspan="13" class="text-center">
+                                                            <strong>{{ subpartida.descripcion|replace_none }}</strong>
+                                                        </td>
+                                                    </tr>
+                                                {% else %}
+                                                    <tr id="subpartida-{{ subpartida.id }}">
+                                                        <td><strong>{{ subpartida.codigo|replace_none }}</strong></td>
+                                                        <td>{{ subpartida.descripcion|replace_none|underscore_to_space }}</td>
+                                                        <td>{{ subpartida.ga|replace_none }}</td>
+                                                        <td>{{ subpartida.ice_iehd|replace_none|underscore_to_space }}</td>
+                                                        <td>{{ subpartida.unidad_medida|replace_none|underscore_to_space }}</td>
+                                                        <td>{{ subpartida.despacho_en_frontera|replace_none|underscore_to_space }}</td>
+                                                        <td>{{ subpartida.tipo_de_doc|replace_none|underscore_to_space }}</td>
+                                                        <td>{{ subpartida.entidad_que_emite|replace_none|underscore_to_space }}</td>
+                                                        <td>{{ subpartida.disposicion_legal|replace_none|underscore_to_space }}</td>
+                                                        <td>{{ subpartida.can_ace_36_47_ven|replace_none }}</td>
+                                                        <td>{{ subpartida.ace_22_chile|replace_none }}</td>
+                                                        <td>{{ subpartida.ace_22_prot|replace_none }}</td>
+                                                        <td>{{ subpartida.ace_66_mexico|replace_none }}</td>
+                                                    </tr>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
                 </div>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
+        {% endfor %}
     </div>
-    {% endfor %}
 
     <script>
-    function buscarYScroll(event) {
-        event.preventDefault();
-        const input = document.getElementById('busqueda-arancel');
-        const filtro = input.value.trim().toLowerCase();
-        if (!filtro) return;
-        // Limpiar resaltados anteriores
-        document.querySelectorAll('.resaltado-busqueda').forEach(e => e.classList.remove('resaltado-busqueda'));
-        document.querySelectorAll('.resaltado-palabra').forEach(e => {
-            const parent = e.parentNode;
-            parent.replaceChild(document.createTextNode(e.textContent), e);
-            parent.normalize();
-        });
-        // Buscar en partidas y subpartidas
-        let encontrado = false;
-        const filas = document.querySelectorAll('tr[id^="partida-"], tr[id^="subpartida-"]');
-        for (const fila of filas) {
-            const celdas = fila.querySelectorAll('td');
-            if (celdas.length >= 2) {
-                const codigo = celdas[0];
-                const descripcion = celdas[1];
-                let match = false;
-                // Resaltar coincidencia en código
-                if (codigo.textContent.toLowerCase().includes(filtro)) {
-                    resaltarPalabra(codigo, filtro);
-                    match = true;
-                }
-                // Resaltar coincidencia en descripción
-                if (descripcion.textContent.toLowerCase().includes(filtro)) {
-                    resaltarPalabra(descripcion, filtro);
-                    match = true;
-                }
-                if (match && !encontrado) {
-                    fila.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    fila.classList.add('resaltado-busqueda');
-                    setTimeout(() => fila.classList.remove('resaltado-busqueda'), 2000);
-                    encontrado = true;
-                }
-            }
-        }
-        if (!encontrado) {
-            alert('No se encontró ninguna coincidencia en la tabla.');
-        }
-    }
-    function resaltarPalabra(element, palabra) {
-        const texto = element.textContent;
-        const regex = new RegExp(`(${palabra})`, 'gi');
-        element.innerHTML = texto.replace(regex, '<span class="resaltado-palabra">$1</span>');
-        setTimeout(() => {
-            element.innerHTML = texto;
-        }, 2000);
-    }
+    // 🔹 Botón para copiar aranceles
+    document.getElementById("copiar-aranceles")?.addEventListener("click", async () => {
+        try {
+            const tabla = document.querySelector("#tabla-aranceles");
+            const contenido = tabla ? tabla.innerText : "No hay aranceles visibles.";
 
-    // Autocompletado AJAX
-    const inputBusqueda = document.getElementById('busqueda-arancel');
-    const sugerencias = document.getElementById('sugerencias-autocomplete');
-    inputBusqueda.addEventListener('input', function() {
-        const valor = this.value.trim();
-        if (valor.length < 2) {
-            sugerencias.innerHTML = '';
-            sugerencias.style.display = 'none';
-            return;
+            await navigator.clipboard.writeText(contenido);
+
+            const boton = document.getElementById("copiar-aranceles");
+            const original = boton.innerHTML;
+            boton.innerHTML = '<i class="fas fa-check me-2"></i>¡Copiado!';
+            boton.classList.remove('btn-outline-primary');
+            boton.classList.add('btn-success');
+            
+            setTimeout(() => {
+                boton.innerHTML = original;
+                boton.classList.remove('btn-success');
+                boton.classList.add('btn-outline-primary');
+            }, 2000);
+        } catch (err) {
+            alert("Error al copiar: " + err);
         }
-        fetch('/arancel/autocomplete/?q=' + encodeURIComponent(valor))
-            .then(resp => resp.json())
-            .then(data => {
-                sugerencias.innerHTML = '';
-                if (data.length === 0) {
-                    // Mostrar mensaje de "No se encontró nada"
-                    const li = document.createElement('li');
-                    li.className = 'list-group-item text-center text-muted';
-                    li.innerHTML = '<i class="fas fa-search me-2"></i>No se encontró nada';
-                    sugerencias.appendChild(li);
-                    sugerencias.style.display = 'block';
-                    return;
-                }
-                data.forEach(item => {
-                    const li = document.createElement('li');
-                    li.className = 'list-group-item list-group-item-action d-flex align-items-center';
-                    
-                    // Crear badge de tipo con color distintivo
-                    const badge = document.createElement('span');
-                    badge.className = 'badge me-2';
-                    
-                    if (item.tipo === 'Partida') {
-                        badge.className += ' bg-warning';
-                        badge.innerHTML = '<i class="fas fa-list-ol me-1"></i>Partida';
-                    } else if (item.tipo === 'Subpartida') {
-                        badge.className += ' bg-info';
-                        badge.innerHTML = '<i class="fas fa-table me-1"></i>Subpartida';
-                    } else if (item.tipo === 'Capítulo') {
-                        badge.className += ' bg-success';
-                        badge.innerHTML = '<i class="fas fa-book me-1"></i>Capítulo';
-                    } else if (item.tipo === 'Sección') {
-                        badge.className += ' bg-primary';
-                        badge.innerHTML = '<i class="fas fa-layer-group me-1"></i>Sección';
-                    }
-                    
-                    li.appendChild(badge);
-                    
-                    // Crear contenido del texto
-                    const content = document.createElement('div');
-                    content.className = 'flex-grow-1';
-                    // Limpiar y formatear el texto (remover símbolos especiales y formatear)
-                    const nombre = (item.codigo || item.nombre || '').replace(/_/g, ' ').replace(/[^\w\s]/g, ' ').trim();
-                    const descripcion = (item.descripcion || '').replace(/_/g, ' ').replace(/[^\w\s]/g, ' ').trim();
-                    // Solo mostrar la descripción sin guiones o símbolos
-                    content.innerHTML = `${descripcion}`;
-                    li.appendChild(content);
-                    
-                    li.onclick = () => {
-                        // Usar el valor con espacios en lugar de guiones bajos
-                        inputBusqueda.value = (item.codigo || item.nombre || '').replace(/_/g, ' ');
-                        sugerencias.innerHTML = '';
-                        sugerencias.style.display = 'none';
-                        inputBusqueda.focus();
-                    };
-                    sugerencias.appendChild(li);
-                });
-                sugerencias.style.display = 'block';
-            });
     });
-    // Ocultar sugerencias al perder foco
-    inputBusqueda.addEventListener('blur', function() {
-        setTimeout(() => { sugerencias.innerHTML = ''; sugerencias.style.display = 'none'; }, 200);
-    });
+
     </script>
-
 </body>
 </html>
 {% endblock %}

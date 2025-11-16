@@ -15,4 +15,5 @@ urlpatterns = [
     path('gestionar-roles/', views.gestionar_roles, name='gestionar_roles'),
     path('admin-simplificado/', views.panel_admin_simplificado, name='panel_admin_simplificado'),
     path('admin-redirect/', views.admin_redirect, name='admin_redirect'),
+    path('estadisticas-gravamenes/', views.estadisticas_gravamenes, name='estadisticas_gravamenes'),
 ]

@@ -19,3 +19,4 @@ db.sqlite3
 # OS files
 Thumbs.db
 .DS_Store
+venv_backup_20251102185702/

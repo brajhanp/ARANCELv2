@@ -10,13 +10,82 @@
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h3 class="mb-0">Resultados de búsqueda para: <strong>"{{ query }}"</strong></h3>
+        
+        {% if partidas or subpartidas %}
+        {# Este badge solo aparece si hay resultados directos #}
         <div class="text-end">
             <span class="badge bg-secondary">
                 {{ subpartidas|length|add:partidas|length }} resultados encontrados
             </span>
         </div>
+        {% endif %}
     </div>
-    {% if subpartidas or partidas %}
+
+    {% comment %}
+    AQUÍ COMIENZA LA NUEVA LÓGICA DE VISUALIZACIÓN
+    {% endcomment %}
+
+    {% if sugerencias_codigos or sugerencias_desc %}
+        {% comment %} CASO 1: No hay resultados, PERO SÍ hay sugerencias {% endcomment %}
+        <div class="alert alert-warning" role="alert">
+            <h4 class="alert-heading">No se encontraron resultados para "{{ query }}"</h4>
+            <p>¿Quizás quisiste decir?</p>
+            <hr>
+            
+            {% if sugerencias_codigos %}
+                <p class="mb-1"><strong>Sugerencias de Códigos:</strong></p>
+                <ul class="mb-0">
+                    {% for item in sugerencias_codigos %}
+                        <li class="d-flex justify-content-between align-items-center">
+                            <div>
+                                {% if item.ga is not None %}  <a href="{% url 'arancel:subpartida_detail' item.id %}">
+                                        <strong>{{ item.codigo }}</strong> - {{ item.descripcion|truncatewords:20 }}
+                                    </a>
+                                {% else %} <a href="{% url 'arancel:partida_detail' item.id %}">
+                                        <strong>{{ item.codigo }}</strong> - {{ item.descripcion|truncatewords:20 }}
+                                    </a>
+                                {% endif %}
+                            </div>
+                            <button class="btn btn-primary btn-sm btn-copiar ms-2" 
+                                    data-codigo="{{ item.codigo }}" 
+                                    data-descripcion="{{ item.descripcion|replace_none }}"
+                                    title="Copiar código y descripción">
+                                <i class="fas fa-copy me-1"></i>Copiar
+                            </button>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            {% if sugerencias_desc %}
+                <p class="mb-1 mt-3"><strong>Sugerencias por Descripción:</strong></p>
+                <ul class="mb-0">
+                    {% for item in sugerencias_desc %}
+                         <li class="d-flex justify-content-between align-items-center">
+                            <div>
+                                {% if item.ga is not None %}  <a href="{% url 'arancel:subpartida_detail' item.id %}">
+                                        <strong>{{ item.codigo }}</strong> - {{ item.descripcion|truncatewords:20 }}
+                                    </a>
+                                {% else %} <a href="{% url 'arancel:partida_detail' item.id %}">
+                                        <strong>{{ item.codigo }}</strong> - {{ item.descripcion|truncatewords:20 }}
+                                    </a>
+                                {% endif %}
+                            </div>
+                            <button class="btn btn-primary btn-sm btn-copiar ms-2" 
+                                    data-codigo="{{ item.codigo }}" 
+                                    data-descripcion="{{ item.descripcion|replace_none }}"
+                                    title="Copiar código y descripción">
+                                <i class="fas fa-copy me-1"></i>Copiar
+                            </button>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+    {% elif partidas or subpartidas %}
+        {% comment %} CASO 2: SÍ hay resultados (tu código original) {% endcomment %}
+        
         {% if subpartidas %}
         <div class="card mb-4">
             <div class="card-header bg-info bg-opacity-10">
@@ -36,13 +105,39 @@
                                     </h6>
                                 </div>
                                 <p class="mb-1 mt-2">{{ subpartida.descripcion|replace_none }}</p>
+                                
+                                <!-- Badges de Requisitos -->
+                                <div class="mb-2">
+                                    {% if subpartida.requiere_permiso %}
+                                        <span class="badge bg-warning text-dark me-2" title="{{ subpartida.detalle_permiso }}">
+                                            <i class="fas fa-file-alt me-1"></i>Permiso requerido
+                                        </span>
+                                    {% endif %}
+                                    {% if subpartida.requiere_licencia %}
+                                        <span class="badge bg-warning text-dark me-2" title="{{ subpartida.detalle_licencia }}">
+                                            <i class="fas fa-id-card me-1"></i>Licencia requerida
+                                        </span>
+                                    {% endif %}
+                                    {% if subpartida.requiere_cupo %}
+                                        <span class="badge bg-warning text-dark me-2" title="{{ subpartida.detalle_cupo }}">
+                                            <i class="fas fa-chart-pie me-1"></i>Cupo requerido
+                                        </span>
+                                    {% endif %}
+                                </div>
+
                                 <small class="text-muted">
                                     <i class="fas fa-folder me-1"></i>Partida: 
                                     <strong>{{ subpartida.partida.codigo }}</strong> - 
                                     {{ subpartida.partida.descripcion|replace_none }}
                                 </small>
                             </div>
-                            <div class="ms-3">
+                            <div class="ms-3 d-flex flex-column gap-2">
+                                <button class="btn btn-primary btn-sm btn-copiar" 
+                                        data-codigo="{{ subpartida.codigo|replace_none }}" 
+                                        data-descripcion="{{ subpartida.descripcion|replace_none }}"
+                                        title="Copiar código y descripción">
+                                    <i class="fas fa-copy me-1"></i>Copiar código y descripción
+                                </button>
                                 {% if subpartida.codigo|is_descriptive_code %}
                                     <a href="{% url 'arancel:partida_detail' subpartida.partida.id %}?highlight={{ subpartida.id }}" 
                                        class="btn btn-outline-info btn-sm">
@@ -61,6 +156,7 @@
             </ul>
         </div>
         {% endif %}
+        
         {% if partidas %}
         <div class="card mb-4">
             <div class="card-header bg-warning bg-opacity-10">
@@ -81,7 +177,13 @@
                                 </div>
                                 <p class="mb-1 mt-2">{{ partida.descripcion|replace_none }}</p>
                             </div>
-                            <div class="ms-3">
+                            <div class="ms-3 d-flex flex-column gap-2">
+                                <button class="btn btn-primary btn-sm btn-copiar" 
+                                        data-codigo="{{ partida.codigo }}" 
+                                        data-descripcion="{{ partida.descripcion|replace_none }}"
+                                        title="Copiar código y descripción">
+                                    <i class="fas fa-copy me-1"></i>Copiar código y descripción
+                                </button>
                                 <a href="{% url 'arancel:partida_detail' partida.id %}" 
                                    class="btn btn-outline-warning btn-sm">
                                     <i class="fas fa-search me-1"></i>Ver detalle
@@ -93,11 +195,72 @@
             </ul>
         </div>
         {% endif %}
+
     {% else %}
-        <div class="alert alert-warning d-flex align-items-center" role="alert">
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            <div>No se encontraron resultados para tu búsqueda.</div>
+        {% comment %} CASO 3: No hay resultados Y TAMPOCO hay sugerencias {% endcomment %}
+        <div class="alert alert-info d-flex align-items-center" role="alert">
+            <i class="fas fa-info-circle me-2"></i>
+            <div>No se encontraron resultados ni sugerencias para <strong>"{{ query }}"</strong>.</div>
         </div>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Función para copiar código y descripción al portapapeles
+    function copiarCodigoDescripcion(codigo, descripcion) {
+        // Formato estándar: CÓDIGO - Descripción
+        const texto = codigo + ' - ' + descripcion;
+        
+        // Usar la API del portapapeles
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(texto).then(function() {
+                // Éxito - el feedback visual se maneja en el event listener
+            }).catch(function(err) {
+                console.error('Error al copiar:', err);
+                alert('Error al copiar al portapapeles. Por favor, copia manualmente: ' + texto);
+            });
+        } else {
+            // Fallback para navegadores antiguos
+            const textarea = document.createElement('textarea');
+            textarea.value = texto;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                alert('Copiado: ' + texto);
+            } catch (err) {
+                alert('Error al copiar. Por favor, copia manualmente: ' + texto);
+            }
+            document.body.removeChild(textarea);
+        }
+    }
+    
+    // Agregar event listeners a todos los botones de copiar
+    document.querySelectorAll('.btn-copiar').forEach(function(boton) {
+        boton.addEventListener('click', function() {
+            const codigo = this.getAttribute('data-codigo');
+            const descripcion = this.getAttribute('data-descripcion');
+            
+            if (codigo && descripcion) {
+                copiarCodigoDescripcion(codigo, descripcion);
+                
+                // Feedback visual
+                const originalHTML = this.innerHTML;
+                const originalClass = this.className;
+                this.innerHTML = '<i class="fas fa-check me-1"></i>¡Copiado!';
+                this.classList.remove('btn-primary');
+                this.classList.add('btn-success');
+                
+                setTimeout(function() {
+                    boton.innerHTML = originalHTML;
+                    boton.className = originalClass;
+                }, 2000);
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

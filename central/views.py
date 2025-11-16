@@ -22,6 +22,7 @@ from django.utils.decorators import method_decorator
 from .models import HistorialBusqueda, Rol, PerfilUsuario
 from .forms import RegistroUsuarioForm
 from django.contrib.auth.decorators import permission_required
+from django.db.models import Avg, Max, Min
 
 def es_superusuario_o_tiene_permiso_usuarios(user):
     return user.is_superuser or (hasattr(user, 'perfil') and user.perfil.rol and user.perfil.rol.permisos_usuarios)
@@ -374,3 +375,41 @@ def exportar_historial(request):
         response['Content-Disposition'] = 'attachment; filename=historial_busquedas.pdf'
         response.write(pdf)
         return response
+
+@login_required
+def estadisticas_gravamenes(request):
+    """Vista para mostrar estadísticas de gravámenes arancelarios por capítulo"""
+    # Obtener todos los capítulos
+    capitulos = Capitulo.objects.all().order_by('codigo')
+    
+    # Lista para almacenar las estadísticas por capítulo
+    estadisticas_por_capitulo = []
+    
+    for capitulo in capitulos:
+        # Obtener todas las subpartidas de este capítulo a través de las partidas
+        # Filtrar solo aquellas que tienen GA (no nulo)
+        subpartidas = Subpartida.objects.filter(
+            partida__capitulo=capitulo,
+            ga__isnull=False
+        )
+        
+        if subpartidas.exists():
+            # Calcular estadísticas
+            estadisticas = subpartidas.aggregate(
+                promedio=Avg('ga'),
+                maximo=Max('ga'),
+                minimo=Min('ga')
+            )
+            
+            # Agregar información del capítulo y estadísticas
+            estadisticas_por_capitulo.append({
+                'capitulo': capitulo,
+                'promedio': estadisticas['promedio'],
+                'maximo': estadisticas['maximo'],
+                'minimo': estadisticas['minimo'],
+                'cantidad_subpartidas': subpartidas.count()
+            })
+    
+    return render(request, 'central/estadisticas_gravamenes.html', {
+        'estadisticas': estadisticas_por_capitulo,
+    })
