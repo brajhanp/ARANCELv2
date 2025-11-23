@@ -1,19 +1,21 @@
 {%extends 'base.html'%}
 {% load custom_filters %}
 {%block content%}
-<div class="d-flex justify-content-end mb-3">
-    <form method="post" action="/accounts/logout/">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-danger">
-            <i class="fas fa-sign-out-alt me-2"></i> Cerrar sesión
-        </button>
-    </form>
-</div>
 <div class="container py-5">
-    <div class="row mb-4">
-        <div class="col text-center">
-            <h2 class="fw-bold">¡Bienvenido{{ user.first_name|default:'@'|add:user.username }}!</h2>
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-8">
+            <h2 class="fw-bold">¡Bienvenido {{ user.first_name|default:user.username }}!</h2>
             <p class="lead">Este es tu panel principal del Sistema de Aranceles.</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="d-inline-flex gap-2">
+                <a href="{% url 'central:edit_profile' %}" class="btn btn-outline-secondary">Editar perfil</a>
+                <a href="{% url 'central:change_password' %}" class="btn btn-outline-secondary">Cambiar contraseña</a>
+                <form method="post" action="{% url 'central:logout' %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger">Cerrar sesión</button>
+                </form>
+            </div>
         </div>
     </div>
     <div class="row justify-content-center mb-4">

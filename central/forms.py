@@ -120,3 +120,83 @@ class RegistroUsuarioForm(forms.ModelForm):
         if commit:
             user.save()
         return user 
+
+class EditProfileForm(forms.ModelForm):
+    """Form to edit user profile information"""
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={'class': 'form-control'})
+    )
+    first_name = forms.CharField(
+        max_length=150,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre'})
+    )
+    last_name = forms.CharField(
+        max_length=150,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Apellido'})
+    )
+
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'first_name', 'last_name')
+        labels = {
+            'username': 'Nombre de usuario',
+            'email': 'Correo electrónico',
+            'first_name': 'Nombre',
+            'last_name': 'Apellido',
+        }
+        widgets = {
+            'username': forms.TextInput(attrs={
+                'class': 'form-control',
+                'readonly': 'readonly'
+            }),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['username'].help_text = 'El nombre de usuario no se puede cambiar'
+        self.fields['email'].help_text = 'Ingresa un correo electrónico válido'
+
+
+class ChangePasswordForm(forms.Form):
+    """Form to change user password"""
+    old_password = forms.CharField(
+        label='Contraseña actual',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa tu contraseña actual'
+        }),
+        required=True
+    )
+    new_password = forms.CharField(
+        label='Nueva contraseña',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa tu nueva contraseña'
+        }),
+        required=True,
+        min_length=8,
+        help_text='La contraseña debe tener al menos 8 caracteres'
+    )
+    confirm_password = forms.CharField(
+        label='Confirmar nueva contraseña',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Confirma tu nueva contraseña'
+        }),
+        required=True
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        new_password = cleaned_data.get('new_password')
+        confirm_password = cleaned_data.get('confirm_password')
+
+        if new_password and confirm_password:
+            if new_password != confirm_password:
+                self.add_error('confirm_password', 'Las contraseñas no coinciden.')
+
+        return cleaned_data

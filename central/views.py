@@ -14,17 +14,16 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from io import BytesIO
-from .forms import HistorialBusquedaFilterForm, ReporteFilterForm
+from .forms import HistorialBusquedaFilterForm, ReporteFilterForm, EditProfileForm, ChangePasswordForm
 from django.contrib.auth.forms import UserCreationForm
 from arancel.models import Seccion, Capitulo, Partida, Subpartida
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils.decorators import method_decorator
 from .models import HistorialBusqueda, Rol, PerfilUsuario, Reporte
 from django.db.models import Avg, Max, Min
-from .models import HistorialBusqueda, Rol, PerfilUsuario
 from .forms import RegistroUsuarioForm
 from django.contrib.auth.decorators import permission_required
-from django.db.models import Avg, Max, Min
+from django.contrib.auth import update_session_auth_hash
 
 def es_superusuario_o_tiene_permiso_usuarios(user):
     return user.is_superuser or (hasattr(user, 'perfil') and user.perfil.rol and user.perfil.rol.permisos_usuarios)
@@ -610,3 +609,48 @@ def exportar_reportes(request):
         response['Content-Disposition'] = 'attachment; filename=reportes_trazabilidad.pdf'
         response.write(pdf)
         return response
+
+
+# ============= USER PROFILE VIEWS =============
+
+@login_required
+def edit_profile(request):
+    """View to edit user profile"""
+    if request.method == 'POST':
+        form = EditProfileForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Tu perfil ha sido actualizado correctamente.')
+            return redirect('central:edit_profile')
+        else:
+            messages.error(request, 'Hay errores en el formulario. Por favor verifica.')
+    else:
+        form = EditProfileForm(instance=request.user)
+    
+    return render(request, 'central/edit_profile.html', {'form': form})
+
+
+@login_required
+def change_password(request):
+    """View to change user password"""
+    if request.method == 'POST':
+        form = ChangePasswordForm(request.POST)
+        if form.is_valid():
+            # Verify old password
+            if request.user.check_password(form.cleaned_data['old_password']):
+                # Set new password
+                request.user.set_password(form.cleaned_data['new_password'])
+                request.user.save()
+                
+                # Keep user logged in after password change
+                update_session_auth_hash(request, request.user)
+                
+                messages.success(request, 'Tu contraseña ha sido cambiada correctamente.')
+                return redirect('central:home')
+            else:
+                form.add_error('old_password', 'La contraseña actual es incorrecta.')
+    else:
+        form = ChangePasswordForm()
+    
+    return render(request, 'central/change_password.html', {'form': form})
+    
