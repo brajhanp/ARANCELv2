@@ -12,10 +12,13 @@ from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_GET
 from central.models import HistorialBusqueda, Reporte
+from central.views import registrar_bitacora
 from arancel.templatetags.custom_filters import is_descriptive_code
 from difflib import get_close_matches
 from difflib import get_close_matches
 from django.db.models import Q # Asegúrate de que Q esté importado
+from spellchecker import SpellChecker
+import re
 
 
 
@@ -27,6 +30,155 @@ def _clean_text_for_json(value):
         return str(value).replace('_', ' ')
     except Exception:
         return str(value)
+
+# Cache para el vocabulario de la base de datos (se carga una vez)
+_vocabulario_cache = None
+_vocabulario_palabras_cache = None
+
+def _obtener_vocabulario_bd():
+    """
+    Obtiene todas las palabras únicas de las descripciones en la BD.
+    Esto sirve como diccionario personalizado para corrección ortográfica.
+    """
+    global _vocabulario_cache, _vocabulario_palabras_cache
+    
+    if _vocabulario_cache is None:
+        try:
+            # Obtener todas las descripciones
+            descripciones_partidas = Partida.objects.values_list('descripcion', flat=True)
+            descripciones_subpartidas = Subpartida.objects.values_list('descripcion', flat=True)
+            nombres_capitulos = Capitulo.objects.values_list('nombre', flat=True)
+            
+            # Unir todas las descripciones
+            todas_descripciones = list(descripciones_partidas) + list(descripciones_subpartidas) + list(nombres_capitulos)
+            
+            # Extraer todas las palabras únicas (mínimo 3 caracteres)
+            palabras_unicas = set()
+            for desc in todas_descripciones:
+                if desc:
+                    # Extraer palabras (solo letras, mínimo 3 caracteres)
+                    palabras = re.findall(r'\b[a-záéíóúñü]{3,}\b', desc.lower())
+                    palabras_unicas.update(palabras)
+            
+            _vocabulario_cache = todas_descripciones
+            _vocabulario_palabras_cache = palabras_unicas
+            
+        except Exception:
+            _vocabulario_cache = []
+            _vocabulario_palabras_cache = set()
+    
+    return _vocabulario_palabras_cache, _vocabulario_cache
+
+def _corregir_palabra_con_vocabulario(palabra, vocabulario_palabras, todas_descripciones):
+    """
+    Corrige una palabra usando el vocabulario de la BD y similitud de texto.
+    Mejorado para buscar en todas las palabras del vocabulario con mejor rendimiento.
+    """
+    from difflib import get_close_matches, SequenceMatcher
+    
+    palabra_lower = palabra.lower()
+    
+    # Si la palabra ya está en el vocabulario, no necesita corrección
+    if palabra_lower in vocabulario_palabras:
+        return palabra
+    
+    # Buscar palabras similares en el vocabulario con cutoff más bajo para mayor flexibilidad
+    # Reducimos el cutoff a 0.6 para encontrar palabras como "cabalo" -> "caballo"
+    palabras_similares = get_close_matches(palabra_lower, list(vocabulario_palabras), n=5, cutoff=0.6)
+    
+    if palabras_similares:
+        # Calcular similitud exacta para elegir la mejor
+        mejor_similitud = 0
+        mejor_palabra = palabras_similares[0]
+        
+        for palabra_similar in palabras_similares:
+            similitud = SequenceMatcher(None, palabra_lower, palabra_similar).ratio()
+            if similitud > mejor_similitud:
+                mejor_similitud = similitud
+                mejor_palabra = palabra_similar
+        
+        # Solo retornar corrección si la similitud es razonable (>= 0.65)
+        if mejor_similitud >= 0.65:
+            return mejor_palabra
+    
+    # Si no hay coincidencias buenas, retornar la palabra original
+    return palabra
+
+# Utilidad: Corrección ortográfica mejorada usando vocabulario de BD + pyspellchecker
+def _corregir_ortografia(texto):
+    """
+    Corrige errores ortográficos usando:
+    1. Vocabulario de la base de datos (palabras reales en descripciones)
+    2. pyspellchecker para palabras comunes en español
+    
+    Retorna el texto corregido y una lista de palabras corregidas.
+    """
+    try:
+        # Obtener vocabulario de la BD
+        vocabulario_palabras, todas_descripciones = _obtener_vocabulario_bd()
+        
+        # Inicializar el corrector ortográfico en español y agregar vocabulario personalizado
+        spell = SpellChecker(language='es')
+        # Agregar todas las palabras del vocabulario personalizado al diccionario
+        if vocabulario_palabras:
+            spell.word_frequency.load_words(list(vocabulario_palabras))
+        
+        # Dividir el texto en palabras preservando espacios
+        palabras = re.findall(r'\S+|\s+', texto)
+        palabras_corregidas = []
+        texto_corregido = ''
+        
+        for palabra in palabras:
+            # Si es espacio, mantenerlo
+            if palabra.isspace():
+                texto_corregido += palabra
+                continue
+            
+            # Extraer solo letras para verificar ortografía
+            palabra_solo_letras = re.sub(r'[^\w]', '', palabra)
+            
+            if palabra_solo_letras and len(palabra_solo_letras) > 2:
+                palabra_lower = palabra_solo_letras.lower()
+                
+                # Primero intentar con el vocabulario de la BD (más preciso para términos técnicos)
+                correccion_vocab = _corregir_palabra_con_vocabulario(
+                    palabra_lower, vocabulario_palabras, todas_descripciones
+                )
+                
+                # Si el vocabulario encontró una corrección diferente
+                if correccion_vocab != palabra_lower:
+                    # Mantener la capitalización original
+                    if palabra_solo_letras[0].isupper():
+                        correccion_vocab = correccion_vocab.capitalize()
+                    
+                    # Reconstruir la palabra con signos de puntuación originales
+                    palabra_corregida = palabra.replace(palabra_solo_letras, correccion_vocab)
+                    palabras_corregidas.append((palabra_solo_letras, correccion_vocab))
+                    texto_corregido += palabra_corregida
+                # Si no, intentar con pyspellchecker (para palabras comunes)
+                elif palabra_lower not in spell:
+                    correccion_spell = spell.correction(palabra_lower)
+                    
+                    if correccion_spell and correccion_spell != palabra_lower:
+                        # Mantener la capitalización original
+                        if palabra_solo_letras[0].isupper():
+                            correccion_spell = correccion_spell.capitalize()
+                        
+                        # Reconstruir la palabra con signos de puntuación originales
+                        palabra_corregida = palabra.replace(palabra_solo_letras, correccion_spell)
+                        palabras_corregidas.append((palabra_solo_letras, correccion_spell))
+                        texto_corregido += palabra_corregida
+                    else:
+                        texto_corregido += palabra
+                else:
+                    texto_corregido += palabra
+            else:
+                texto_corregido += palabra
+        
+        return texto_corregido.strip(), palabras_corregidas
+    except Exception as e:
+        # Si hay algún error, retornar el texto original
+        return texto, []
 
 # Utilidad: Crear reporte de trazabilidad automáticamente
 def _crear_reporte_busqueda(usuario, codigo, descripcion, tipo_accion, resultado='exitosa'):
@@ -81,43 +233,60 @@ class CapituloDetailView(DetailView):
     model = Capitulo
     template_name = 'arancel/capitulo_detail.html'
     context_object_name = 'capitulo'
+    
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+        # Registrar consulta en bitácora
+        if hasattr(self, 'object') and self.object:
+            registrar_bitacora(
+                request,
+                'consulta',
+                f'Consulta de detalle de Capítulo: {self.object.codigo} - {self.object.nombre}',
+                {'tipo': 'Capitulo', 'codigo': self.object.codigo, 'id': self.object.id}
+            )
+        return response
 
 @method_decorator(login_required, name='dispatch')
 class PartidaDetailView(DetailView):
     model = Partida
     template_name = 'arancel/partida_detail.html'
     context_object_name = 'partida'
+    
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+        # Registrar consulta en bitácora
+        if hasattr(self, 'object') and self.object:
+            registrar_bitacora(
+                request,
+                'consulta',
+                f'Consulta de detalle de Partida: {self.object.codigo} - {self.object.descripcion[:100]}',
+                {'tipo': 'Partida', 'codigo': self.object.codigo, 'id': self.object.id}
+            )
+        return response
 
 @method_decorator(login_required, name='dispatch')
 class SubpartidaDetailView(DetailView):
     model = Subpartida
     template_name = 'arancel/subpartida_detail.html'
     context_object_name = 'subpartida'
+    
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+        # Registrar consulta en bitácora
+        if hasattr(self, 'object') and self.object:
+            registrar_bitacora(
+                request,
+                'consulta',
+                f'Consulta de detalle de Subpartida: {self.object.codigo} - {self.object.descripcion[:100]}',
+                {'tipo': 'Subpartida', 'codigo': self.object.codigo, 'id': self.object.id}
+            )
+        return response
 
 @login_required
 def tabla_aranceles(request):
-    query = request.GET.get('q', '').strip()
+    # Cargar todas las secciones sin filtrar (el filtrado se hace en el frontend)
     secciones = Seccion.objects.prefetch_related('capitulos__partidas__subpartidas')
-    if query:
-        query_lower = query.lower()
-        secciones_filtradas = []
-        for seccion in secciones:
-            capitulos_filtrados = []
-            for capitulo in seccion.capitulos.all():
-                partidas_filtradas = []
-                for partida in capitulo.partidas.all():
-                    subpartidas_filtradas = [s for s in partida.subpartidas.all() if query_lower in s.codigo.lower() or query_lower in s.descripcion.lower()]
-                    if query_lower in partida.codigo.lower() or query_lower in partida.descripcion.lower() or subpartidas_filtradas:
-                        partida.subpartidas_filtradas = subpartidas_filtradas if subpartidas_filtradas else list(partida.subpartidas.all())
-                        partidas_filtradas.append(partida)
-                if query_lower in capitulo.codigo.lower() or query_lower in capitulo.nombre.lower() or partidas_filtradas:
-                    capitulo.partidas_filtradas = partidas_filtradas if partidas_filtradas else list(capitulo.partidas.all())
-                    capitulos_filtrados.append(capitulo)
-            if query_lower in seccion.nombre.lower() or capitulos_filtrados:
-                seccion.capitulos_filtrados = capitulos_filtrados if capitulos_filtrados else list(seccion.capitulos.all())
-                secciones_filtradas.append(seccion)
-        secciones = secciones_filtradas
-    return render(request, 'arancel/tabla_aranceles.html', {'secciones': secciones, 'query': query})
+    return render(request, 'arancel/tabla_aranceles.html', {'secciones': secciones})
 
 def search_predictive(request):
     query = request.GET.get('q', '').strip()  # Obtén el término de búsqueda
@@ -176,6 +345,13 @@ def buscador_global(request):
             partida.descripcion, 
             'consulta_detalle'
         )
+        # Registrar en bitácora
+        registrar_bitacora(
+            request,
+            'busqueda',
+            f'Búsqueda realizada: "{query}" - Resultado: Partida {partida.codigo}',
+            {'termino': query, 'tipo_resultado': 'Partida', 'codigo': partida.codigo, 'id': partida.id}
+        )
         return redirect('arancel:partida_detail', pk=partida.id)
 
     # Si hay una sola subpartida EXACTA
@@ -194,6 +370,13 @@ def buscador_global(request):
                 subpartida.descripcion,
                 'consulta_detalle'
             )
+            # Registrar en bitácora
+            registrar_bitacora(
+                request,
+                'busqueda',
+                f'Búsqueda realizada: "{query}" - Resultado: Subpartida {subpartida.codigo}',
+                {'termino': query, 'tipo_resultado': 'Subpartida', 'codigo': subpartida.codigo, 'id': subpartida.id}
+            )
             return redirect(f'/arancel/partidas/{subpartida.partida.id}/?highlight={subpartida.id}')
         else:
             HistorialBusqueda.objects.create(
@@ -206,6 +389,13 @@ def buscador_global(request):
                 subpartida.codigo,
                 subpartida.descripcion,
                 'consulta_detalle'
+            )
+            # Registrar en bitácora
+            registrar_bitacora(
+                request,
+                'busqueda',
+                f'Búsqueda realizada: "{query}" - Resultado: Subpartida {subpartida.codigo}',
+                {'termino': query, 'tipo_resultado': 'Subpartida', 'codigo': subpartida.codigo, 'id': subpartida.id}
             )
             return redirect('arancel:subpartida_detail', pk=subpartida.id)
 
@@ -223,6 +413,13 @@ def buscador_global(request):
             capitulo.nombre,
             'consulta_detalle'
         )
+        # Registrar en bitácora
+        registrar_bitacora(
+            request,
+            'busqueda',
+            f'Búsqueda realizada: "{query}" - Resultado: Capítulo {capitulo.codigo}',
+            {'termino': query, 'tipo_resultado': 'Capitulo', 'codigo': capitulo.codigo, 'id': capitulo.id}
+        )
         return redirect('arancel:capitulo_detail', pk=capitulo.id)
 
     seccion = Seccion.objects.filter(nombre__iexact=query).first()
@@ -238,11 +435,25 @@ def buscador_global(request):
             seccion.nombre,
             'consulta_detalle'
         )
+        # Registrar en bitácora
+        registrar_bitacora(
+            request,
+            'busqueda',
+            f'Búsqueda realizada: "{query}" - Resultado: Sección {seccion.nombre}',
+            {'termino': query, 'tipo_resultado': 'Seccion', 'id': seccion.id}
+        )
         return redirect('arancel:seccion_detail', pk=seccion.id)
 
     # --- Si no hay NINGUNA coincidencia exacta 1-a-1 ---
     # Redirigir a la página de resultados. 
     # Esta página se encargará de buscar por __icontains Y de buscar sugerencias.
+    # Registrar búsqueda en bitácora
+    registrar_bitacora(
+        request,
+        'busqueda',
+        f'Búsqueda realizada: "{query}" - Resultado: Múltiples resultados',
+        {'termino': query, 'tipo_resultado': 'Multiples'}
+    )
     return redirect(f"/arancel/resultados_busqueda/?q={query}")
 
 @require_GET
@@ -306,6 +517,20 @@ def autocomplete_arancel(request):
     
     if query and len(query) >= 1:
         query_lower = query.lower()
+        
+        # Intentar corrección ortográfica si no parece ser un código
+        query_original = query
+        query_corregida = None
+        es_codigo = any(c.isdigit() for c in query) or len(query) <= 10
+        
+        # Si no es un código, intentar corregir ortografía
+        if not es_codigo and len(query) > 2:  # Solo corregir si tiene más de 2 caracteres
+            query_corregida, _ = _corregir_ortografia(query)
+            # Si la corrección es diferente y tiene sentido, usar ambas búsquedas
+            if query_corregida and query_corregida.lower() != query.lower():
+                # Usar la consulta corregida para búsquedas adicionales
+                query = query_corregida
+                query_lower = query.lower()
         
         # Determinar si la búsqueda parece ser un código (principalmente números)
         es_codigo = any(c.isdigit() for c in query) or len(query) <= 10
@@ -679,6 +904,32 @@ def resultados_busqueda(request):
     
     sugerencias_codigos = []
     sugerencias_desc = []
+    query_corregida = None
+    correcciones_realizadas = []
+    
+    # 1.5. Si no hay resultados, intentar corrección ortográfica primero
+    if total_results == 0 and query:
+        # Intentar corregir la ortografía
+        query_corregida, correcciones = _corregir_ortografia(query)
+        
+        # Si hubo correcciones y la consulta corregida es diferente
+        if query_corregida and query_corregida.lower() != query.lower() and correcciones:
+            correcciones_realizadas = correcciones
+            # Buscar con la consulta corregida
+            partidas_corregidas = Partida.objects.filter(
+                Q(codigo__icontains=query_corregida) | Q(descripcion__icontains=query_corregida)
+            )
+            subpartidas_corregidas = Subpartida.objects.filter(
+                Q(codigo__icontains=query_corregida) | Q(descripcion__icontains=query_corregida)
+            )
+            
+            # Si encontramos resultados con la corrección, usarlos
+            if partidas_corregidas.exists() or subpartidas_corregidas.exists():
+                partidas = partidas_corregidas
+                subpartidas = subpartidas_corregidas
+                total_results = partidas.count() + subpartidas.count()
+                # Agregar mensaje informativo sobre la corrección
+                messages.info(request, f'Búsqueda corregida: "{query}" → "{query_corregida}"')
     
     # 2. Si no hay resultados, ¡activar búsqueda "fuzzy" con difflib!
     if total_results == 0 and query:
@@ -740,10 +991,19 @@ def resultados_busqueda(request):
                 tipo_resultado=tipo_resultado,
                 id_resultado=None
             )
+            # Registrar en bitácora
+            registrar_bitacora(
+                request,
+                'busqueda',
+                f'Búsqueda realizada: "{query}" - {tipo_resultado}',
+                {'termino': query, 'tipo_resultado': tipo_resultado, 'total_resultados': total_results}
+            )
             
     # 4. Renderizar la página
     return render(request, 'arancel/resultados_busqueda.html', {
         'query': query,
+        'query_corregida': query_corregida,
+        'correcciones_realizadas': correcciones_realizadas,
         'partidas': partidas,
         'subpartidas': subpartidas,
         'sugerencias_codigos': sugerencias_codigos,   # <-- ¡Nuevos!

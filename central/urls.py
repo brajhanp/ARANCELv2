@@ -6,6 +6,7 @@ app_name = 'central'
 urlpatterns = [
     path('historial/', views.HistorialBusquedaListView.as_view(), name='historial_busquedas'),
     path('historial/exportar/', views.exportar_historial, name='exportar_historial'),
+    path('bitacora/', views.bitacora_view, name='bitacora'),
     path('reportes/', views.ReporteListView.as_view(), name='reporte_list'),
     path('reportes/exportar/', views.exportar_reportes, name='exportar_reportes'),
     path('', views.home, name='home'),

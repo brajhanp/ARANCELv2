@@ -4,9 +4,16 @@
 <div class="container mt-4">
     <div class="d-flex align-items-center justify-content-between">
         <h2 class="mb-0">Historial de Búsquedas</h2>
-        <a href="{% url 'central:home' %}" class="btn btn-outline-primary">
-            <i class="fa fa-home" aria-hidden="true"></i> Volver al panel
-        </a>
+        <div class="d-flex gap-2">
+            {% if user.is_superuser or user.perfil.rol.nombre == 'Administrador' or user.perfil.rol.permisos_admin %}
+            <a href="{% url 'central:bitacora' %}" class="btn btn-warning">
+                <i class="fas fa-book me-2"></i>Bitácora de Auditoría
+            </a>
+            {% endif %}
+            <a href="{% url 'central:home' %}" class="btn btn-outline-primary">
+                <i class="fa fa-home" aria-hidden="true"></i> Volver al panel
+            </a>
+        </div>
     </div>
     
     <!-- Formulario de filtros -->

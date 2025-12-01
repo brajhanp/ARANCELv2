@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <h2 class="mb-0">
+            <i class="fas fa-book me-2"></i>Bitácora de Auditoría
+        </h2>
+        <a href="{% url 'central:historial_busquedas' %}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-2"></i>Volver al Historial
+        </a>
+    </div>
+    
+    <!-- Formulario de filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="tipo_accion" class="form-label">Tipo de Acción</label>
+                    <select name="tipo_accion" id="tipo_accion" class="form-control">
+                        <option value="">Todos</option>
+                        {% for valor, etiqueta in tipos_accion %}
+                        <option value="{{ valor }}" {% if tipo_accion == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="usuario" class="form-label">Usuario</label>
+                    <input type="text" name="usuario" id="usuario" class="form-control" 
+                           placeholder="Nombre de usuario..." value="{{ usuario_filtro }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
+                    <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control" 
+                           value="{{ fecha_inicio }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="fecha_fin" class="form-label">Fecha Fin</label>
+                    <input type="date" name="fecha_fin" id="fecha_fin" class="form-control" 
+                           value="{{ fecha_fin }}">
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter me-2"></i>Filtrar
+                    </button>
+                    <a href="{% url 'central:bitacora' %}" class="btn btn-secondary">
+                        <i class="fas fa-times me-2"></i>Limpiar filtros
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de resultados -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Fecha y Hora</th>
+                            <th>Usuario</th>
+                            <th>Tipo de Acción</th>
+                            <th>Descripción</th>
+                            <th>IP Address</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entrada in bitacora %}
+                        <tr>
+                            <td>{{ entrada.fecha_accion|date:"d/m/Y H:i:s" }}</td>
+                            <td>
+                                {% if entrada.usuario %}
+                                    <span class="badge bg-primary">{{ entrada.usuario.username }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Usuario eliminado</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge 
+                                    {% if entrada.tipo_accion == 'login' %}bg-success
+                                    {% elif entrada.tipo_accion == 'logout' %}bg-warning
+                                    {% elif entrada.tipo_accion == 'busqueda' %}bg-info
+                                    {% elif entrada.tipo_accion == 'consulta' %}bg-primary
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ entrada.get_tipo_accion_display }}
+                                </span>
+                            </td>
+                            <td>{{ entrada.descripcion|truncatewords:20 }}</td>
+                            <td><small class="text-muted">{{ entrada.ip_address|default:"--" }}</small></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4">
+                                <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                                <p class="text-muted">No se encontraron registros en la bitácora</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paginación -->
+    {% if bitacora.has_other_pages %}
+    <nav aria-label="Navegación de páginas" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if bitacora.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">Primera</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ bitacora.previous_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">Anterior</a>
+            </li>
+            {% endif %}
+
+            <li class="page-item active">
+                <span class="page-link">
+                    Página {{ bitacora.number }} de {{ bitacora.paginator.num_pages }}
+                </span>
+            </li>
+
+            {% if bitacora.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ bitacora.next_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">Siguiente</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ bitacora.paginator.num_pages }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">Última</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}
+
+

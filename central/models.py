@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+import json
 
 # Create your models here.
 
@@ -81,3 +82,38 @@ class Reporte(models.Model):
     
     def __str__(self):
         return f"{self.usuario.username} - {self.codigo_arancelario} ({self.fecha_operacion.strftime('%d/%m/%Y %H:%M')})"
+
+
+class Bitacora(models.Model):
+    """Modelo para registrar todas las acciones relevantes de los usuarios (bitácora de auditoría)"""
+    TIPO_ACCION_CHOICES = [
+        ('login', 'Inicio de Sesión'),
+        ('logout', 'Cierre de Sesión'),
+        ('busqueda', 'Búsqueda'),
+        ('consulta', 'Consulta de Detalle'),
+        ('modificacion', 'Modificación'),
+        ('eliminacion', 'Eliminación'),
+        ('creacion', 'Creación'),
+    ]
+    
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='bitacora_entradas')
+    fecha_accion = models.DateTimeField(auto_now_add=True, db_index=True)
+    tipo_accion = models.CharField(max_length=50, choices=TIPO_ACCION_CHOICES, db_index=True)
+    descripcion = models.TextField(help_text="Descripción detallada de la acción")
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True, null=True)
+    detalles_adicionales = models.JSONField(default=dict, blank=True, help_text="Información adicional en formato JSON")
+    
+    class Meta:
+        ordering = ['-fecha_accion']
+        verbose_name = 'Entrada de Bitácora'
+        verbose_name_plural = 'Bitácora de Auditoría'
+        indexes = [
+            models.Index(fields=['usuario', '-fecha_accion']),
+            models.Index(fields=['tipo_accion', '-fecha_accion']),
+            models.Index(fields=['-fecha_accion']),
+        ]
+    
+    def __str__(self):
+        usuario_nombre = self.usuario.username if self.usuario else 'Usuario eliminado'
+        return f"{usuario_nombre} - {self.get_tipo_accion_display()} ({self.fecha_accion.strftime('%d/%m/%Y %H:%M:%S')})"

@@ -19,7 +19,7 @@ from django.contrib.auth.forms import UserCreationForm
 from arancel.models import Seccion, Capitulo, Partida, Subpartida
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils.decorators import method_decorator
-from .models import HistorialBusqueda, Rol, PerfilUsuario, Reporte
+from .models import HistorialBusqueda, Rol, PerfilUsuario, Reporte, Bitacora
 from django.db.models import Avg, Max, Min
 from .forms import RegistroUsuarioForm
 from django.contrib.auth.decorators import permission_required
@@ -27,6 +27,45 @@ from django.contrib.auth import update_session_auth_hash
 
 def es_superusuario_o_tiene_permiso_usuarios(user):
     return user.is_superuser or (hasattr(user, 'perfil') and user.perfil.rol and user.perfil.rol.permisos_usuarios)
+
+def es_administrador(user):
+    """Verifica si el usuario es administrador (rol Administrador o superusuario)"""
+    if user.is_superuser:
+        return True
+    if hasattr(user, 'perfil') and user.perfil.rol:
+        return user.perfil.rol.nombre == 'Administrador' or user.perfil.rol.permisos_admin
+    return False
+
+def registrar_bitacora(request, tipo_accion, descripcion, detalles_adicionales=None):
+    """Función helper para registrar acciones en la bitácora"""
+    try:
+        usuario = request.user if request.user.is_authenticated else None
+        ip_address = None
+        user_agent = None
+        
+        if request:
+            # Obtener IP del cliente
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                ip_address = x_forwarded_for.split(',')[0]
+            else:
+                ip_address = request.META.get('REMOTE_ADDR')
+            
+            # Obtener User-Agent
+            user_agent = request.META.get('HTTP_USER_AGENT', '')[:255]
+        
+        Bitacora.objects.create(
+            usuario=usuario,
+            tipo_accion=tipo_accion,
+            descripcion=descripcion,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            detalles_adicionales=detalles_adicionales or {}
+        )
+    except Exception as e:
+        # No fallar si hay error al registrar bitácora
+        import logging
+        logging.error(f"Error al registrar en bitácora: {str(e)}")
 
 @login_required
 def home(request):
@@ -56,6 +95,13 @@ def limpiar_historial(request):
 @login_required
 @user_passes_test(es_superusuario_o_tiene_permiso_usuarios)
 def gestionar_usuarios(request):
+    # Registrar acceso a gestión de usuarios en bitácora
+    registrar_bitacora(
+        request,
+        'consulta',
+        f'Acceso a gestión de usuarios por administrador {request.user.username}',
+        {'accion': 'gestionar_usuarios', 'usuario_admin': request.user.username}
+    )
     usuarios = User.objects.all().order_by('username')
     roles = Rol.objects.all().order_by('nombre')
     
@@ -72,23 +118,51 @@ def gestionar_usuarios(request):
             perfil.rol = rol
             perfil.save()
             
+            # Registrar en bitácora
+            registrar_bitacora(
+                request,
+                'modificacion',
+                f'Administrador {request.user.username} asignó rol "{rol.nombre if rol else "Sin rol"}" a usuario {usuario.username}',
+                {'accion': 'asignar_rol', 'usuario_afectado': usuario.username, 'rol_asignado': rol.nombre if rol else None}
+            )
+            
             messages.success(request, f'Rol "{rol.nombre if rol else "Sin rol"}" asignado a {usuario.username}')
             
         elif accion == 'activar_desactivar':
             usuario = get_object_or_404(User, id=usuario_id)
             perfil, created = PerfilUsuario.objects.get_or_create(usuario=usuario)
+            estado_anterior = perfil.activo
             perfil.activo = not perfil.activo
             perfil.save()
             
             estado = "activado" if perfil.activo else "desactivado"
+            
+            # Registrar en bitácora
+            registrar_bitacora(
+                request,
+                'modificacion',
+                f'Administrador {request.user.username} {estado} usuario {usuario.username}',
+                {'accion': 'activar_desactivar', 'usuario_afectado': usuario.username, 'estado_anterior': estado_anterior, 'estado_nuevo': perfil.activo}
+            )
+            
             messages.success(request, f'Usuario {usuario.username} {estado}')
         elif accion == 'eliminar_usuario':
             usuario = get_object_or_404(User, id=usuario_id)
             if usuario.is_superuser:
                 messages.error(request, 'No puedes eliminar un superusuario desde esta interfaz.')
             else:
+                usuario_nombre = usuario.username
                 usuario.delete()
-                messages.success(request, f'Usuario {usuario.username} eliminado correctamente.')
+                
+                # Registrar en bitácora
+                registrar_bitacora(
+                    request,
+                    'eliminacion',
+                    f'Administrador {request.user.username} eliminó usuario {usuario_nombre}',
+                    {'accion': 'eliminar_usuario', 'usuario_eliminado': usuario_nombre}
+                )
+                
+                messages.success(request, f'Usuario {usuario_nombre} eliminado correctamente.')
     
     return render(request, 'central/gestionar_usuarios.html', {
         'usuarios': usuarios,
@@ -122,6 +196,15 @@ def gestionar_roles(request):
                         permisos_admin=permisos_admin,
                         permisos_usuarios=permisos_usuarios
                     )
+                    
+                    # Registrar en bitácora
+                    registrar_bitacora(
+                        request,
+                        'creacion',
+                        f'Administrador {request.user.username} creó rol "{rol.nombre}"',
+                        {'accion': 'crear_rol', 'rol_creado': rol.nombre, 'permisos': {'arancel': permisos_arancel, 'admin': permisos_admin, 'usuarios': permisos_usuarios}}
+                    )
+                    
                     messages.success(request, f'Rol "{rol.nombre}" creado exitosamente')
             else:
                 messages.error(request, 'El nombre del rol es obligatorio')
@@ -137,6 +220,15 @@ def gestionar_roles(request):
                 rol.permisos_admin = request.POST.get('permisos_admin') == 'on'
                 rol.permisos_usuarios = request.POST.get('permisos_usuarios') == 'on'
                 rol.save()
+                
+                # Registrar en bitácora
+                registrar_bitacora(
+                    request,
+                    'modificacion',
+                    f'Administrador {request.user.username} actualizó permisos del rol "{rol.nombre}"',
+                    {'accion': 'editar_rol', 'rol': rol.nombre, 'permisos': {'arancel': rol.permisos_arancel, 'admin': rol.permisos_admin, 'usuarios': rol.permisos_usuarios}}
+                )
+                
                 messages.success(request, f'Permisos del rol "{rol.nombre}" actualizados exitosamente')
             else:
                 # Para roles personalizados, permitir editar todo
@@ -146,6 +238,15 @@ def gestionar_roles(request):
                 rol.permisos_admin = request.POST.get('permisos_admin') == 'on'
                 rol.permisos_usuarios = request.POST.get('permisos_usuarios') == 'on'
                 rol.save()
+                
+                # Registrar en bitácora
+                registrar_bitacora(
+                    request,
+                    'modificacion',
+                    f'Administrador {request.user.username} actualizó rol "{rol.nombre}"',
+                    {'accion': 'editar_rol', 'rol': rol.nombre, 'permisos': {'arancel': rol.permisos_arancel, 'admin': rol.permisos_admin, 'usuarios': rol.permisos_usuarios}}
+                )
+                
                 messages.success(request, f'Rol "{rol.nombre}" actualizado exitosamente')
             
         elif accion == 'eliminar_rol':
@@ -161,8 +262,18 @@ def gestionar_roles(request):
                 if usuarios_con_rol > 0:
                     messages.error(request, f'No se puede eliminar el rol "{rol.nombre}" porque {usuarios_con_rol} usuario(s) lo están usando')
                 else:
+                    rol_nombre = rol.nombre
                     rol.delete()
-                    messages.success(request, f'Rol "{rol.nombre}" eliminado exitosamente')
+                    
+                    # Registrar en bitácora
+                    registrar_bitacora(
+                        request,
+                        'eliminacion',
+                        f'Administrador {request.user.username} eliminó rol "{rol_nombre}"',
+                        {'accion': 'eliminar_rol', 'rol_eliminado': rol_nombre}
+                    )
+                    
+                    messages.success(request, f'Rol "{rol_nombre}" eliminado exitosamente')
     
     return render(request, 'central/gestionar_roles.html', {
         'roles': roles,
@@ -201,12 +312,36 @@ def login_view(request):
                 PerfilUsuario.objects.create(usuario=user)
             
             login(request, user)
+            
+            # Registrar en bitácora
+            registrar_bitacora(
+                request,
+                'login',
+                f'Usuario {user.username} inició sesión exitosamente',
+                {'username': user.username, 'user_id': user.id}
+            )
+            
             return redirect('home')
         else:
+            # Registrar intento de login fallido
+            registrar_bitacora(
+                request,
+                'login',
+                f'Intento de login fallido para usuario: {username}',
+                {'username': username, 'resultado': 'fallido'}
+            )
             messages.error(request, 'Usuario o contraseña incorrectos')
     return render(request, 'registration/login.html')
 
 def logout_view(request):
+    # Registrar en bitácora antes de hacer logout
+    if request.user.is_authenticated:
+        registrar_bitacora(
+            request,
+            'logout',
+            f'Usuario {request.user.username} cerró sesión',
+            {'username': request.user.username, 'user_id': request.user.id}
+        )
     logout(request) 
     return redirect('login')    
 
@@ -258,43 +393,59 @@ class HistorialBusquedaListView(LoginRequiredMixin, ListView):
     context_object_name = 'historial'
     paginate_by = 20
 
-    def get_queryset(self):
-        queryset = HistorialBusqueda.objects.all()
-        form = HistorialBusquedaFilterForm(self.request.GET)
-        
-        if form.is_valid():
-            if form.cleaned_data['fecha_inicio']:
-                queryset = queryset.filter(fecha_busqueda__date__gte=form.cleaned_data['fecha_inicio'])
-            if form.cleaned_data['fecha_fin']:
-                queryset = queryset.filter(fecha_busqueda__date__lte=form.cleaned_data['fecha_fin'])
-            if form.cleaned_data['tipo_resultado']:
-                queryset = queryset.filter(tipo_resultado=form.cleaned_data['tipo_resultado'])
-            if form.cleaned_data['palabra_clave']:
-                queryset = queryset.filter(
-                    Q(termino_busqueda__icontains=form.cleaned_data['palabra_clave']) |
-                    Q(usuario__username__icontains=form.cleaned_data['palabra_clave'])
-                )
-        
-        return queryset.select_related('usuario')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['form'] = HistorialBusquedaFilterForm(self.request.GET)
-        
-        # Crear reporte cuando acceden a ver historial
-        try:
-            Reporte.objects.create(
-                usuario=self.request.user,
-                codigo_arancelario='',
-                descripcion_clasificacion='Acceso a apartado de Historial de Búsquedas',
-                tipo_accion='consulta_detalle',
-                resultado_operacion='exitosa',
-                detalles_adicionales='Usuario consultó el historial de búsquedas'
-            )
-        except Exception:
-            pass  # No bloquea si falla
-        
-        return context
+@login_required
+@user_passes_test(es_administrador)
+def bitacora_view(request):
+    """Vista para ver la bitácora de auditoría (solo administradores)"""
+    from .models import Bitacora
+    from django.db.models import Q
+    
+    # Filtros
+    tipo_accion = request.GET.get('tipo_accion', '')
+    usuario_filtro = request.GET.get('usuario', '')
+    fecha_inicio = request.GET.get('fecha_inicio', '')
+    fecha_fin = request.GET.get('fecha_fin', '')
+    
+    # Obtener todas las entradas de bitácora
+    bitacora = Bitacora.objects.all()
+    
+    # Aplicar filtros
+    if tipo_accion:
+        bitacora = bitacora.filter(tipo_accion=tipo_accion)
+    
+    if usuario_filtro:
+        bitacora = bitacora.filter(usuario__username__icontains=usuario_filtro)
+    
+    if fecha_inicio:
+        from django.utils.dateparse import parse_date
+        fecha_inicio_parsed = parse_date(fecha_inicio)
+        if fecha_inicio_parsed:
+            from django.utils import timezone
+            bitacora = bitacora.filter(fecha_accion__date__gte=fecha_inicio_parsed)
+    
+    if fecha_fin:
+        from django.utils.dateparse import parse_date
+        fecha_fin_parsed = parse_date(fecha_fin)
+        if fecha_fin_parsed:
+            bitacora = bitacora.filter(fecha_accion__date__lte=fecha_fin_parsed)
+    
+    # Ordenar por fecha más reciente
+    bitacora = bitacora.order_by('-fecha_accion')
+    
+    # Paginación
+    from django.core.paginator import Paginator
+    paginator = Paginator(bitacora, 50)  # 50 registros por página
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    return render(request, 'central/bitacora.html', {
+        'bitacora': page_obj,
+        'tipo_accion': tipo_accion,
+        'usuario_filtro': usuario_filtro,
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
+        'tipos_accion': Bitacora.TIPO_ACCION_CHOICES,
+    })
 
 @login_required
 def exportar_historial(request):
