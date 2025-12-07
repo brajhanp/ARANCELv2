@@ -74,7 +74,7 @@ class Subpartida(models.Model):
         ('pendiente', 'Pendiente'),
         ('en_proceso', 'En Proceso'),
         ('completado', 'Completado'),
-        ('no_aplica', 'No Aplica')
+        ('no_aplica', 'No aplica')
     ], default='no_aplica')
     
     requiere_licencia = models.BooleanField(default=False)
@@ -84,7 +84,7 @@ class Subpartida(models.Model):
         ('pendiente', 'Pendiente'),
         ('en_proceso', 'En Proceso'),
         ('completado', 'Completado'),
-        ('no_aplica', 'No Aplica')
+        ('no_aplica', 'No aplica')
     ], default='no_aplica')
     
     requiere_cupo = models.BooleanField(default=False)
@@ -94,7 +94,7 @@ class Subpartida(models.Model):
         ('pendiente', 'Pendiente'),
         ('en_proceso', 'En Proceso'),
         ('completado', 'Completado'),
-        ('no_aplica', 'No Aplica')
+        ('no_aplica', 'No aplica')
     ], default='no_aplica')
     
     instrucciones_validacion = models.TextField(blank=True, null=True)  # Instrucciones específicas para completar requisitos

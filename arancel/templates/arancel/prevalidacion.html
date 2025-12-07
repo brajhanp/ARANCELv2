@@ -96,6 +96,11 @@
                                     <div class="card-body">
                                         <p id="permiso-detalle" class="mb-2"></p>
                                         <small id="permiso-entidad" class="text-muted d-block mb-3"></small>
+                                        <div id="permiso-enlace-container" class="mb-3" style="display: none;">
+                                            <a id="permiso-enlace" href="#" target="_blank" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-external-link-alt me-1"></i> Acceder al Permiso
+                                            </a>
+                                        </div>
                                         <div class="progress mb-2" style="height: 5px;">
                                             <div id="permiso-progress" class="progress-bar" role="progressbar" style="width: 0%"></div>
                                         </div>
@@ -112,7 +117,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- Licencia -->
                             <div id="licencia-container" class="requisito-item mb-3" style="display: none;">
                                 <div class="card">
@@ -172,7 +177,6 @@
                                     </div>
                                 </div>
                             </div>
-
                             <style>
                             .estado-badge {
                                 padding: 0.35rem 0.75rem;
@@ -336,11 +340,11 @@ document.addEventListener('DOMContentLoaded', function() {
         alertasContainer.innerHTML = '';
         
         // Mostrar alertas según los requisitos
-        if (data.requiere_permiso || data.requiere_licencia || data.requiere_cupo) {
+        if ((data.requiere_permiso && data.estado_permiso !== 'no_aplica') || (data.requiere_licencia && data.estado_licencia !== 'no_aplica') || (data.requiere_cupo && data.estado_cupo !== 'no_aplica')) {
             let requisitosNecesarios = [];
-            if (data.requiere_permiso) requisitosNecesarios.push('permiso');
-            if (data.requiere_licencia) requisitosNecesarios.push('licencia');
-            if (data.requiere_cupo) requisitosNecesarios.push('cupo');
+            if (data.requiere_permiso && data.estado_permiso !== 'no_aplica') requisitosNecesarios.push('permiso');
+            if (data.requiere_licencia && data.estado_licencia !== 'no_aplica') requisitosNecesarios.push('licencia');
+            if (data.requiere_cupo && data.estado_cupo !== 'no_aplica') requisitosNecesarios.push('cupo');
             
             const requisitosTexto = requisitosNecesarios.join(', ');
             const alertaHtml = `
@@ -366,10 +370,28 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Actualizar sección de permiso
         const permisoContainer = document.getElementById('permiso-container');
-        if (data.requiere_permiso) {
+        // Mostrar entidad/detalle solo si efectivamente requiere permiso y no está marcado como 'no_aplica'
+        if (data.requiere_permiso && data.estado_permiso !== 'no_aplica') {
             permisoContainer.style.display = 'block';
             document.getElementById('permiso-detalle').textContent = data.detalle_permiso;
             document.getElementById('permiso-entidad').textContent = `Entidad: ${data.entidad_permiso}`;
+            
+            // Mostrar enlace si existe URL en el detalle
+            const permisoEnlaceContainer = document.getElementById('permiso-enlace-container');
+            const permisoEnlace = document.getElementById('permiso-enlace');
+            if (data.detalle_permiso && (data.detalle_permiso.includes('http://') || data.detalle_permiso.includes('https://'))) {
+                // Extraer URL si está en el formato "Descripción - https://..."
+                const urlMatch = data.detalle_permiso.match(/(https?:\/\/[^\s]+)/);
+                if (urlMatch) {
+                    permisoEnlace.href = urlMatch[1];
+                    permisoEnlaceContainer.style.display = 'block';
+                } else {
+                    permisoEnlaceContainer.style.display = 'none';
+                }
+            } else {
+                permisoEnlaceContainer.style.display = 'none';
+            }
+            
             actualizarEstadoVisual('permiso', data.estado_permiso || 'pendiente');
         } else {
             permisoContainer.style.display = 'none';
@@ -377,7 +399,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Actualizar sección de licencia
         const licenciaContainer = document.getElementById('licencia-container');
-        if (data.requiere_licencia) {
+        if (data.requiere_licencia && data.estado_licencia !== 'no_aplica') {
             licenciaContainer.style.display = 'block';
             document.getElementById('licencia-detalle').textContent = data.detalle_licencia;
             document.getElementById('licencia-entidad').textContent = `Entidad: ${data.entidad_licencia}`;
@@ -388,7 +410,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Actualizar sección de cupo
         const cupoContainer = document.getElementById('cupo-container');
-        if (data.requiere_cupo) {
+        if (data.requiere_cupo && data.estado_cupo !== 'no_aplica') {
             cupoContainer.style.display = 'block';
             document.getElementById('cupo-detalle').textContent = data.detalle_cupo;
             document.getElementById('cupo-entidad').textContent = `Entidad: ${data.entidad_cupo}`;
@@ -529,6 +551,27 @@ document.addEventListener('DOMContentLoaded', function() {
             sugerenciasContainer.style.display = 'none';
         }
     });
+    
+    // Función para mostrar detalles del permiso
+    window.mostrarDetallesPermiso = function() {
+        const detalle = document.getElementById('permiso-detalle').textContent;
+        const entidad = document.getElementById('permiso-entidad').textContent;
+        alert(`${entidad}\n\n${detalle}`);
+    };
+    
+    // Función para mostrar detalles de la licencia
+    window.mostrarDetallesLicencia = function() {
+        const detalle = document.getElementById('licencia-detalle').textContent;
+        const entidad = document.getElementById('licencia-entidad').textContent;
+        alert(`${entidad}\n\n${detalle}`);
+    };
+    
+    // Función para mostrar detalles del cupo
+    window.mostrarDetallesCupo = function() {
+        const detalle = document.getElementById('cupo-detalle').textContent;
+        const entidad = document.getElementById('cupo-entidad').textContent;
+        alert(`${entidad}\n\n${detalle}`);
+    };
 });
 </script>
 {% endblock %}

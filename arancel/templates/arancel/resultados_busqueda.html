@@ -108,17 +108,17 @@
                                 
                                 <!-- Badges de Requisitos -->
                                 <div class="mb-2">
-                                    {% if subpartida.requiere_permiso %}
+                                    {% if subpartida.requiere_permiso and subpartida.estado_permiso != 'no_aplica' %}
                                         <span class="badge bg-warning text-dark me-2" title="{{ subpartida.detalle_permiso }}">
                                             <i class="fas fa-file-alt me-1"></i>Permiso requerido
                                         </span>
                                     {% endif %}
-                                    {% if subpartida.requiere_licencia %}
+                                    {% if subpartida.requiere_licencia and subpartida.estado_licencia != 'no_aplica' %}
                                         <span class="badge bg-warning text-dark me-2" title="{{ subpartida.detalle_licencia }}">
                                             <i class="fas fa-id-card me-1"></i>Licencia requerida
                                         </span>
                                     {% endif %}
-                                    {% if subpartida.requiere_cupo %}
+                                    {% if subpartida.requiere_cupo and subpartida.estado_cupo != 'no_aplica' %}
                                         <span class="badge bg-warning text-dark me-2" title="{{ subpartida.detalle_cupo }}">
                                             <i class="fas fa-chart-pie me-1"></i>Cupo requerido
                                         </span>

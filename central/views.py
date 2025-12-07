@@ -392,6 +392,48 @@ class HistorialBusquedaListView(LoginRequiredMixin, ListView):
     template_name = 'central/historial_busquedas.html'
     context_object_name = 'historial'
     paginate_by = 20
+    
+    def get_queryset(self):
+        """
+        Todos los usuarios (incluyendo administradores) ven solo su propio historial
+        Para ver el historial de otros usuarios, usar la bitácora (solo para administradores)
+        """
+        queryset = HistorialBusqueda.objects.all()
+        
+        # Todos ven solo su historial
+        queryset = queryset.filter(usuario=self.request.user)
+        
+        # Aplicar filtros del formulario
+        fecha_inicio = self.request.GET.get('fecha_inicio', '')
+        fecha_fin = self.request.GET.get('fecha_fin', '')
+        tipo_resultado = self.request.GET.get('tipo_resultado', '')
+        palabra_clave = self.request.GET.get('palabra_clave', '')
+        
+        if fecha_inicio:
+            from django.utils.dateparse import parse_date
+            fecha_parsed = parse_date(fecha_inicio)
+            if fecha_parsed:
+                queryset = queryset.filter(fecha_busqueda__date__gte=fecha_parsed)
+        
+        if fecha_fin:
+            from django.utils.dateparse import parse_date
+            fecha_parsed = parse_date(fecha_fin)
+            if fecha_parsed:
+                queryset = queryset.filter(fecha_busqueda__date__lte=fecha_parsed)
+        
+        if tipo_resultado:
+            queryset = queryset.filter(tipo_resultado=tipo_resultado)
+        
+        if palabra_clave:
+            queryset = queryset.filter(termino_busqueda__icontains=palabra_clave)
+        
+        return queryset
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Pasar el formulario de filtros al contexto
+        context['form'] = HistorialBusquedaFilterForm(self.request.GET or None)
+        return context
 
 @login_required
 @user_passes_test(es_administrador)
@@ -481,6 +523,10 @@ def exportar_historial(request):
     
     # Obtener los datos filtrados
     queryset = HistorialBusqueda.objects.all()
+    
+    # Todos los usuarios (incluyendo administradores) solo ven su propio historial
+    queryset = queryset.filter(usuario=request.user)
+    
     form = HistorialBusquedaFilterForm(request.GET)
     
     if form.is_valid():

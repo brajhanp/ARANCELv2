@@ -26,7 +26,29 @@ SECRET_KEY = 'django-insecure-c@i7n+gr)68k&@374a^-(*q_15imo35e7-(i*=+gp^yn+gojjv
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# Permitir acceso desde cualquier IP (para desarrollo en red local)
+# En producción, especifica solo los dominios permitidos
+ALLOWED_HOSTS = ['*']  # Para desarrollo: permite cualquier host
+# Para producción usa: ALLOWED_HOSTS = ['tudominio.com', 'www.tudominio.com']
+
+# Configuración para funcionar detrás de proxy (ngrok, etc.)
+# Permite que Django reconozca solicitudes HTTPS a través de proxy
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+
+# Orígenes confiables para CSRF (necesario para ngrok y otros proxies)
+# En desarrollo, permite cualquier origen si DEBUG está activo
+# Para ngrok, agrega tu URL específica aquí cuando la obtengas
+# Ejemplo: CSRF_TRUSTED_ORIGINS = ['https://abc123.ngrok.io']
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+]
+
+# Configuración de cookies para desarrollo (detrás de proxy)
+if DEBUG:
+    CSRF_COOKIE_SECURE = False  # Permitir cookies CSRF en HTTP (ngrok usa HTTPS pero proxy es HTTP)
+    SESSION_COOKIE_SECURE = False  # Permitir cookies de sesión en HTTP
 
 
 # Application definition
@@ -42,11 +64,19 @@ INSTALLED_APPS = [
     'arancel',
 ]
 
+# Configurar middleware según el modo
+if DEBUG:
+    # En desarrollo, usar middleware personalizado que permite orígenes dinámicos
+    CSRF_MIDDLEWARE = 'SCMAA.middleware.DynamicCsrfMiddleware'
+else:
+    # En producción, usar el middleware estándar
+    CSRF_MIDDLEWARE = 'django.middleware.csrf.CsrfViewMiddleware'
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    CSRF_MIDDLEWARE,  # Middleware CSRF (dinámico en desarrollo, estándar en producción)
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -120,6 +150,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

@@ -36,8 +36,6 @@
             </div>
             <div class="card-body">
                 <dl class="row">
-                    <dt class="col-sm-4">ID:</dt>
-                    <dd class="col-sm-8">{{ subpartida.id }}</dd>
                     <dt class="col-sm-4">Código:</dt>
                     <dd class="col-sm-8">{{ subpartida.codigo|replace_none }}</dd>
                     <dt class="col-sm-4">Descripción:</dt>
@@ -79,83 +77,89 @@
                     <div class="card-body">
                         <div class="row">
                             <!-- Permiso -->
-                            <div class="col-md-4">
-                                <div class="card h-100 {% if subpartida.requiere_permiso %}border-warning{% else %}border-success{% endif %}">
+                            <div class="col-md-12">
+                                <div class="card h-100 {% if subpartida.entidad_permiso %}border-warning{% else %}border-success{% endif %}">
                                     <div class="card-body">
                                         <h5 class="card-title">
-                                            <i class="fas fa-file-alt me-2"></i>Permiso
-                                            {% if subpartida.requiere_permiso %}
-                                                <span class="badge bg-warning text-dark float-end">Requerido</span>
+                                            <i class="fas fa-file-alt me-2"></i>Requisitos Adicionales - Permiso
+                                            {% if subpartida.entidad_permiso %}
+                                                <span class="badge bg-warning text-dark float-end">Permiso requerido</span>
                                             {% else %}
-                                                <span class="badge bg-success float-end">No requerido</span>
+                                                <span class="badge bg-success float-end">No requiere permiso</span>
                                             {% endif %}
                                         </h5>
-                                        {% if subpartida.requiere_permiso %}
-                                            <p class="card-text">{{ subpartida.detalle_permiso }}</p>
-                                            <p class="mb-0"><strong>Entidad:</strong> {{ subpartida.entidad_permiso }}</p>
-                                            <div class="mt-2">
+
+                                        <!-- Detalle estructurado: Tipo, Entidad, Enlace/Detalle, Estado -->
+                                        <dl class="row mb-2">
+                                            <dt class="col-sm-4">Tipo de permiso:</dt>
+                                            <dd class="col-sm-8">{% if subpartida.tipo_de_doc %}{{ subpartida.tipo_de_doc }}{% else %}-{% endif %}</dd>
+
+                                            <dt class="col-sm-4">Entidad:</dt>
+                                            <dd class="col-sm-8">
+                                                {% if subpartida.entidad_permiso %}
+                                                    {{ subpartida.entidad_permiso }}
+                                                {% elif subpartida.entidad_que_emite %}
+                                                    {{ subpartida.entidad_que_emite }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </dd>
+
+                                            <dt class="col-sm-4">Procedimiento y Enlace:</dt>
+                                            <dd class="col-sm-8">
+                                                {% if subpartida.entidad_permiso == 'SENASAG' %}
+                                                    <div class="mb-2">
+                                                        <p class="small text-muted mb-2">Para gestionar permisos del SENASAG utilice el sistema informático <strong>Patujú</strong> a través de la Ventanilla Única de Servicios (VUSU). Debe registrarse primero de forma presencial en las oficinas departamentales para obtener usuario y contraseña; luego ingrese en línea a VUSU/Patujú, seleccione el módulo requerido (Importación, Exportación, Inocuidad, etc.), complete formularios, adjunte documentos y pague las tasas. El sistema procesa la solicitud y emite el permiso electrónicamente.</p>
+                                                        <a href="https://www.senasag.gob.bo/index.php/tramites-y-servicios/gran-paititi" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-warning me-2">
+                                                            <i class="fas fa-external-link-alt me-1"></i>Acceder a Gran Paitití (SENASAG)
+                                                        </a>
+                                                        <a href="https://www.senasag.gob.bo" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary">
+                                                            Sitio SENASAG
+                                                        </a>
+                                                    </div>
+                                                {% elif subpartida.entidad_permiso %}
+                                                    {% if subpartida.detalle_permiso %}
+                                                        <script>
+                                                            (function() {
+                                                                const detalle = "{{ subpartida.detalle_permiso|escapejs }}";
+                                                                const urls = detalle.split(' | ');
+                                                                const container = document.getElementById('detail-links-{{ subpartida.id }}');
+                                                                if (container) {
+                                                                    urls.forEach(url => {
+                                                                        if (url.includes('http')) {
+                                                                            const link = document.createElement('a');
+                                                                            link.href = url.trim();
+                                                                            link.target = '_blank';
+                                                                            link.rel = 'noopener noreferrer';
+                                                                            link.className = 'btn btn-sm btn-warning d-inline-block mb-2 me-2';
+                                                                            link.innerHTML = '<i class="fas fa-external-link-alt me-1"></i>' + url.trim();
+                                                                            container.appendChild(link);
+                                                                        }
+                                                                    });
+                                                                }
+                                                            })();
+                                                        </script>
+                                                        <div id="detail-links-{{ subpartida.id }}"></div>
+                                                    {% else %}
+                                                        <span>-</span>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <span>-</span>
+                                                {% endif %}
+                                            </dd>
+
+                                            {% if subpartida.estado_permiso and subpartida.estado_permiso != 'no_aplica' %}
+                                            <dt class="col-sm-4">Estado:</dt>
+                                            <dd class="col-sm-8">
                                                 <span class="badge {% if subpartida.estado_permiso == 'completado' %}bg-success
                                                     {% elif subpartida.estado_permiso == 'en_proceso' %}bg-info
                                                     {% elif subpartida.estado_permiso == 'pendiente' %}bg-warning
                                                     {% else %}bg-secondary{% endif %}">
-                                                    {{ subpartida.estado_permiso|title }}
+                                                    {{ subpartida.estado_permiso|underscore_to_space|title }}
                                                 </span>
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Licencia -->
-                            <div class="col-md-4">
-                                <div class="card h-100 {% if subpartida.requiere_licencia %}border-warning{% else %}border-success{% endif %}">
-                                    <div class="card-body">
-                                        <h5 class="card-title">
-                                            <i class="fas fa-id-card me-2"></i>Licencia
-                                            {% if subpartida.requiere_licencia %}
-                                                <span class="badge bg-warning text-dark float-end">Requerido</span>
-                                            {% else %}
-                                                <span class="badge bg-success float-end">No requerido</span>
+                                            </dd>
                                             {% endif %}
-                                        </h5>
-                                        {% if subpartida.requiere_licencia %}
-                                            <p class="card-text">{{ subpartida.detalle_licencia }}</p>
-                                            <p class="mb-0"><strong>Entidad:</strong> {{ subpartida.entidad_licencia }}</p>
-                                            <div class="mt-2">
-                                                <span class="badge {% if subpartida.estado_licencia == 'completado' %}bg-success
-                                                    {% elif subpartida.estado_licencia == 'en_proceso' %}bg-info
-                                                    {% elif subpartida.estado_licencia == 'pendiente' %}bg-warning
-                                                    {% else %}bg-secondary{% endif %}">
-                                                    {{ subpartida.estado_licencia|title }}
-                                                </span>
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Cupo -->
-                            <div class="col-md-4">
-                                <div class="card h-100 {% if subpartida.requiere_cupo %}border-warning{% else %}border-success{% endif %}">
-                                    <div class="card-body">
-                                        <h5 class="card-title">
-                                            <i class="fas fa-chart-pie me-2"></i>Cupo
-                                            {% if subpartida.requiere_cupo %}
-                                                <span class="badge bg-warning text-dark float-end">Requerido</span>
-                                            {% else %}
-                                                <span class="badge bg-success float-end">No requerido</span>
-                                            {% endif %}
-                                        </h5>
-                                        {% if subpartida.requiere_cupo %}
-                                            <p class="card-text">{{ subpartida.detalle_cupo }}</p>
-                                            <p class="mb-0"><strong>Entidad:</strong> {{ subpartida.entidad_cupo }}</p>
-                                            <div class="mt-2">
-                                                <span class="badge {% if subpartida.estado_cupo == 'completado' %}bg-success
-                                                    {% elif subpartida.estado_cupo == 'en_proceso' %}bg-info
-                                                    {% elif subpartida.estado_cupo == 'pendiente' %}bg-warning
-                                                    {% else %}bg-secondary{% endif %}">
-                                                    {{ subpartida.estado_cupo|title }}
-                                                </span>
-                                            </div>
-                                        {% endif %}
+                                        </dl>
                                     </div>
                                 </div>
                             </div>

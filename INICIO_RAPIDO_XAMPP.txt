@@ -1,0 +1,40 @@
+========================================
+  INICIO RAPIDO - ARANCELv2 en XAMPP
+========================================
+
+METODO MAS SIMPLE (RECOMENDADO):
+--------------------------------
+
+1. Ejecuta el script de configuracion:
+   configurar_xampp.bat
+
+2. Luego ejecuta:
+   run.bat
+
+3. Abre tu navegador en:
+   http://127.0.0.1:8000/
+
+¡Eso es todo! El servidor de desarrollo de Django funciona
+perfectamente con XAMPP sin necesidad de configurar Apache.
+
+========================================
+
+PARA USAR APACHE DIRECTAMENTE (Puerto 80):
+-------------------------------------------
+
+1. Lee el archivo: INSTALACION_XAMPP.md
+2. Sigue las instrucciones de la "Opcion 2"
+3. Requiere instalar mod_wsgi
+
+========================================
+
+ARCHIVOS IMPORTANTES:
+---------------------
+
+- INSTALACION_XAMPP.md  -> Guia completa de instalacion
+- xampp_httpd.conf      -> Configuracion de Apache
+- configurar_xampp.bat  -> Script de configuracion automatica
+- run.bat               -> Inicia el servidor Django
+
+========================================
+
