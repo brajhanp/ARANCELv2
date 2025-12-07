@@ -117,6 +117,16 @@
                                                             Sitio SENASAG
                                                         </a>
                                                     </div>
+                                                {% elif subpartida.tipo_de_doc == 'C-CITES' %}
+                                                    <div class="mb-2">
+                                                        <p class="small text-muted mb-2"><strong>Procedimiento CITES (MMAYA)</strong> - El trámite para especies reguladas debe gestionarse mediante el <strong>Viceministerio de Medio Ambiente, Biodiversidad, Cambio Climático y de Gestión Forestal (MMAYA)</strong> a través de la plataforma VUCE (Ventanilla Única de Comercio Exterior). Debe presentar: carta de solicitud dirigida al Viceministerio, certificado zoosanitario/fitosanitario de SENASAG (si aplica), certificado CITES del país de origen, documentos de legalidad de captura/adquisición, factura y lista de empaque. <strong>Importante:</strong> aunque la solicitud es en línea, la presentación de documentos y el retiro del certificado son presenciales en la Dirección General de Biodiversidad y Áreas Protegidas del Viceministerio.</p>
+                                                        <a href="https://www.vuce.gob.bo/es/MMAYA_certificado_repatriacion_especies_procedimiento?utm_source=chatgpt.com" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-info me-2">
+                                                            <i class="fas fa-external-link-alt me-1"></i>MMAYA - Certificado CITES (VUCE)
+                                                        </a>
+                                                        <a href="https://www.vuce.gob.bo" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary">
+                                                            Plataforma VUCE
+                                                        </a>
+                                                    </div>
                                                 {% elif subpartida.entidad_permiso %}
                                                     {% if subpartida.detalle_permiso %}
                                                         <script>
