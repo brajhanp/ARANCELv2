@@ -154,6 +154,23 @@ python manage.py shell
 python manage.py collectstatic
 ```
 
+### Comando personalizado: `actualizar_permisos`
+
+Este proyecto incluye un comando de administración para normalizar y actualizar los campos relacionados con permisos en las subpartidas.
+
+- **Qué hace:**
+   - Añade el enlace de la Ventanilla Única de Comercio (VUCE) `https://www.vuce.gob.bo` a las subpartidas cuyo `tipo_de_doc` es `C` o `C-CITES` (sin duplicar).
+   - Establece valores por defecto de `entidad_permiso` para `C` (SENASAG) y `C-CITES` (MDRYT / MMAYA) cuando estén vacíos.
+   - Limpia (`entidad_permiso`, `detalle_permiso`, `requiere_permiso`, `estado_permiso`) en subpartidas de otros tipos, marcándolas como `no_aplica`.
+
+- **Cómo ejecutarlo:**
+```powershell
+py manage.py actualizar_permisos
+```
+
+Usa este comando con precaución en entornos de producción; crea una copia de seguridad de `db.sqlite3` antes de ejecutar si corresponde.
+
+
 ## Solución de Problemas
 
 ### Error: "python: command not found"
@@ -169,6 +186,26 @@ python manage.py collectstatic
 - **Solución**: Tu versión de Python no incluye venv. Instala una versión más reciente (3.10+).
 
 ### Base de datos no aparece
+### Error: "No module named 'spellchecker'" o problemas con pyspellchecker
+
+- **Síntoma:** Iniciar el servidor con `python manage.py runserver` lanza `ModuleNotFoundError: No module named 'spellchecker'` o errores relacionados.
+- **Causa:** El proyecto usa `pyspellchecker` en `arancel/views.py` para mejora de sugerencias ortográficas; si la dependencia no está instalada en el entorno virtual, Django fallará al importar.
+- **Solución:**
+  1. Activa tu entorno virtual (si procede):
+     ```powershell
+     .\venv\Scripts\activate.bat
+     ```
+  2. Instala las dependencias:
+     ```powershell
+     pip install -r requirements.txt
+     ```
+  3. Alternativa rápida (solo `pyspellchecker`):
+     ```powershell
+     pip install pyspellchecker
+     ```
+
+- **Opción si no quieres usar la corrección ortográfica:** comenta o elimina la importación en `arancel/views.py` (`from spellchecker import SpellChecker`) y las secciones que la utilicen. Esto es seguro y solo desactiva la sugerencia ortográfica.
+
 - **Solución**: Ejecuta:
   ```powershell
   python manage.py migrate
