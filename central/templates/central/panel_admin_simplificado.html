@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{% url 'central:home' %}" class="btn btn-outline-primary">
+        <i class="fas fa-arrow-left me-2"></i>Volver al Dashboard
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0">
+                    <i class="fas fa-cog me-2"></i>
+                    Panel de Administración
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card border-primary h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                                <h5 class="card-title">Gestión de Usuarios</h5>
+                                <p class="card-text">Administra usuarios, asigna roles y controla accesos al sistema.</p>
+                                <a href="{% url 'gestionar_usuarios' %}" class="btn btn-primary">
+                                    <i class="fas fa-users me-2"></i>Gestionar Usuarios
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <div class="card border-success h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-user-tag fa-3x text-success mb-3"></i>
+                                <h5 class="card-title">Gestión de Roles</h5>
+                                <p class="card-text">Crea y configura roles con diferentes niveles de permisos.</p>
+                                <a href="{% url 'gestionar_roles' %}" class="btn btn-success">
+                                    <i class="fas fa-user-tag me-2"></i>Gestionar Roles
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if user.is_superuser %}
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Acceso Completo de Administrador
+                            </h6>
+                            <p class="mb-2">Como superusuario, también puedes acceder al panel completo de Django:</p>
+                            <a href="/admin/" class="btn btn-outline-info btn-sm">
+                                <i class="fas fa-external-link-alt me-2"></i>
+                                Panel Completo de Django
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    Estadísticas del Sistema
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3 mb-3">
+                        <div class="border rounded p-3">
+                            <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                            <h4 class="text-primary">{{ total_usuarios|default:"0" }}</h4>
+                            <p class="mb-0">Usuarios Registrados</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="border rounded p-3">
+                            <i class="fas fa-user-shield fa-2x text-danger mb-2"></i>
+                            <h4 class="text-danger">{{ usuarios_activos|default:"0" }}</h4>
+                            <p class="mb-0">Usuarios Activos</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="border rounded p-3">
+                            <i class="fas fa-user-tag fa-2x text-success mb-2"></i>
+                            <h4 class="text-success">{{ total_roles|default:"0" }}</h4>
+                            <p class="mb-0">Roles Definidos</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="border rounded p-3">
+                            <i class="fas fa-search fa-2x text-info mb-2"></i>
+                            <h4 class="text-info">{{ total_busquedas|default:"0" }}</h4>
+                            <p class="mb-0">Búsquedas Realizadas</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

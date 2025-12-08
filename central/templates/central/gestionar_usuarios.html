@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{% url 'central:home' %}" class="btn btn-outline-primary">
+        <i class="fas fa-arrow-left me-2"></i>Volver al Dashboard
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-users me-2"></i>
+                    Gestión de Usuarios del Sistema
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Email</th>
+                                <th>Rol Asignado</th>
+                                <th>Estado</th>
+                                <th>Fecha Registro</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for usuario in usuarios %}
+                            <tr>
+                                <td>
+                                    <strong>{{ usuario.username }}</strong>
+                                    {% if usuario.is_superuser %}
+                                        <span class="badge bg-danger ms-2">Superusuario</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ usuario.email|default:"No especificado" }}</td>
+                                <td>
+                                    {% if usuario.perfil.rol %}
+                                        {% if usuario.perfil.rol.nombre == 'Administrador' %}
+                                            <span class="badge bg-danger">{{ usuario.perfil.rol.nombre }}</span>
+                                        {% elif usuario.perfil.rol.nombre == 'Despachador de Aduana' %}
+                                            <span class="badge bg-info">{{ usuario.perfil.rol.nombre }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ usuario.perfil.rol.nombre }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-warning">Sin rol</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if usuario.perfil.activo %}
+                                        <span class="badge bg-success">Activo</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactivo</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ usuario.date_joined|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <!-- Asignar Rol -->
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                <i class="fas fa-user-tag"></i> Asignar Rol
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li>
+                                                    <form method="post" style="display: inline;">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="usuario_id" value="{{ usuario.id }}">
+                                                        <input type="hidden" name="rol_id" value="">
+                                                        <input type="hidden" name="accion" value="asignar_rol">
+                                                        <button type="submit" class="dropdown-item">
+                                                            <i class="fas fa-times me-1"></i>Sin rol
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                                {% for rol in roles %}
+                                                <li>
+                                                    <form method="post" style="display: inline;">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="usuario_id" value="{{ usuario.id }}">
+                                                        <input type="hidden" name="rol_id" value="{{ rol.id }}">
+                                                        <input type="hidden" name="accion" value="asignar_rol">
+                                                        <button type="submit" class="dropdown-item">
+                                                            {% if rol.nombre == 'Administrador' %}
+                                                                <i class="fas fa-user-shield me-1"></i>
+                                                            {% elif rol.nombre == 'Despachador de Aduana' %}
+                                                                <i class="fas fa-shipping-fast me-1"></i>
+                                                            {% else %}
+                                                                <i class="fas fa-user me-1"></i>
+                                                            {% endif %}
+                                                            {{ rol.nombre }}
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                        
+                                        <!-- Activar/Desactivar -->
+                                        <form method="post" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="usuario_id" value="{{ usuario.id }}">
+                                            <input type="hidden" name="accion" value="activar_desactivar">
+                                            <button type="submit" class="btn btn-sm btn-outline-{% if usuario.perfil.activo %}warning{% else %}success{% endif %}">
+                                                <i class="fas fa-{% if usuario.perfil.activo %}ban{% else %}check{% endif %}"></i>
+                                                {% if usuario.perfil.activo %}Desactivar{% else %}Activar{% endif %}
+                                            </button>
+                                        </form>
+                                        
+                                        <!-- Eliminar usuario (no superusuario) -->
+                                        {% if not usuario.is_superuser %}
+                                        <form method="post" style="display: inline;" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este usuario? Esta acción no se puede deshacer.');">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="usuario_id" value="{{ usuario.id }}">
+                                            <input type="hidden" name="accion" value="eliminar_usuario">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash"></i> Eliminar
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center">
+                                    <div class="alert alert-info mb-0">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        No hay usuarios registrados.
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Descripción de Roles Disponibles
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for rol in roles %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card border-{% if rol.nombre == 'Administrador' %}danger{% elif rol.nombre == 'Despachador de Aduana' %}info{% else %}secondary{% endif %}">
+                            <div class="card-header bg-{% if rol.nombre == 'Administrador' %}danger{% elif rol.nombre == 'Despachador de Aduana' %}info{% else %}light{% endif %} text-white">
+                                <h6 class="mb-0">
+                                    {% if rol.nombre == 'Administrador' %}
+                                        <i class="fas fa-user-shield me-2"></i>
+                                    {% elif rol.nombre == 'Despachador de Aduana' %}
+                                        <i class="fas fa-shipping-fast me-2"></i>
+                                    {% else %}
+                                        <i class="fas fa-user me-2"></i>
+                                    {% endif %}
+                                    {{ rol.nombre }}
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">{{ rol.descripcion }}</p>
+                                <div class="small">
+                                    <strong>Permisos:</strong><br>
+                                    {% if rol.permisos_arancel %}
+                                        <span class="badge bg-success me-1">
+                                            <i class="fas fa-search me-1"></i>Acceso a Aranceles
+                                        </span>
+                                    {% endif %}
+                                    {% if rol.permisos_admin %}
+                                        <span class="badge bg-warning me-1">
+                                            <i class="fas fa-cog me-1"></i>Panel de Administración
+                                        </span>
+                                    {% endif %}
+                                    {% if rol.permisos_usuarios %}
+                                        <span class="badge bg-danger me-1">
+                                            <i class="fas fa-users me-1"></i>Gestión de Usuarios
+                                        </span>
+                                    {% endif %}
+                                    {% if not rol.permisos_arancel and not rol.permisos_admin and not rol.permisos_usuarios %}
+                                        <span class="text-muted">Sin permisos especiales</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            No hay roles definidos. <a href="{% url 'gestionar_roles' %}" class="alert-link">Crear roles</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

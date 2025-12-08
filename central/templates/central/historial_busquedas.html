@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex align-items-center justify-content-between">
+        <h2 class="mb-0">Historial de Búsquedas</h2>
+        <div class="d-flex gap-2">
+            {% if user.is_superuser or user.perfil.rol.nombre == 'Administrador' or user.perfil.rol.permisos_admin %}
+            <a href="{% url 'central:bitacora' %}" class="btn btn-warning">
+                <i class="fas fa-book me-2"></i>Bitácora de Auditoría
+            </a>
+            {% endif %}
+            <a href="{% url 'central:home' %}" class="btn btn-outline-primary">
+                <i class="fa fa-home" aria-hidden="true"></i> Volver al panel
+            </a>
+        </div>
+    </div>
+    
+    <!-- Formulario de filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="{{ form.fecha_inicio.id_for_label }}" class="form-label">Fecha Inicio</label>
+                    {{ form.fecha_inicio }}
+                </div>
+                <div class="col-md-3">
+                    <label for="{{ form.fecha_fin.id_for_label }}" class="form-label">Fecha Fin</label>
+                    {{ form.fecha_fin }}
+                </div>
+                <div class="col-md-3">
+                    <label for="{{ form.tipo_resultado.id_for_label }}" class="form-label">Tipo de Resultado</label>
+                    {{ form.tipo_resultado }}
+                </div>
+                {% if user.is_superuser %}
+                <div class="col-md-3">
+                    <label for="{{ form.usuario.id_for_label }}" class="form-label">Usuario</label>
+                    {{ form.usuario }}
+                </div>
+                {% elif user.perfil and user.perfil.rol and user.perfil.rol.nombre == 'Gerente' %}
+                <div class="col-md-3">
+                    <label for="{{ form.usuario.id_for_label }}" class="form-label">Usuario</label>
+                    {{ form.usuario }}
+                </div>
+                {% endif %}
+                <div class="col-md-3">
+                    <label for="{{ form.palabra_clave.id_for_label }}" class="form-label">Palabra Clave</label>
+                    {{ form.palabra_clave }}
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">Filtrar</button>
+                    <a href="{% url 'central:historial_busquedas' %}" class="btn btn-secondary">Limpiar filtros</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Botones de exportación -->
+    <div class="mb-3">
+        <a href="{% url 'central:exportar_historial' %}?format=pdf{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}" 
+           class="btn btn-danger">
+            Exportar a PDF
+        </a>
+        <a href="{% url 'central:exportar_historial' %}?format=excel{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}" 
+           class="btn btn-success">
+            Exportar a Excel
+        </a>
+    </div>
+
+    <!-- Tabla de resultados -->
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Usuario</th>
+                    <th>Término de búsqueda</th>
+                    <th>Tipo de resultado</th>
+                    <th>Fecha y hora</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for registro in historial %}
+                <tr>
+                    <td>{{ registro.usuario.username }}</td>
+                    <td>{{ registro.termino_busqueda }}</td>
+                    <td>{{ registro.tipo_resultado|default:"--" }}</td>
+                    <td>{{ registro.fecha_busqueda|date:"d/m/Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center">No se encontraron registros</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paginación -->
+    {% if is_paginated %}
+    <nav aria-label="Navegación de páginas">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">Primera</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">Anterior</a>
+            </li>
+            {% endif %}
+
+            <li class="page-item active">
+                <span class="page-link">
+                    Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                </span>
+            </li>
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">Siguiente</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">Última</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

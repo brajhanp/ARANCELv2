@@ -1,0 +1,84 @@
+========================================
+  GUIA RAPIDA DE INICIO - ARANCELv2
+========================================
+
+OPCION 1: ACCESO DESDE INTERNET (con ngrok)
+--------------------------------------------
+Para acceder desde cualquier dispositivo en cualquier red:
+
+1. Doble clic en: iniciar_con_ngrok.bat
+   O ejecuta: .\iniciar_con_ngrok.bat
+
+2. Espera a que aparezca la URL de ngrok
+   Ejemplo: https://abc123.ngrok-free.dev
+
+3. Copia esa URL y compártela
+   - Funciona desde cualquier dispositivo
+   - Funciona desde cualquier red (internet)
+
+4. Para detener: Presiona Ctrl+C en la ventana de ngrok
+
+NOTA: Requiere tener ngrok instalado y en el PATH
+      Descarga desde: https://ngrok.com/download
+
+
+OPCION 2: ACCESO EN RED LOCAL (misma WiFi)
+-------------------------------------------
+Para acceder desde otros dispositivos en tu misma red WiFi:
+
+1. Doble clic en: run_red.bat
+   O ejecuta: .\run_red.bat
+
+2. Anota tu IP local que aparece
+   Ejemplo: http://192.168.1.100:8000
+
+3. Desde otros dispositivos en la misma WiFi:
+   - Abre el navegador
+   - Ve a: http://TU_IP:8000
+
+4. Para detener: Presiona Ctrl+C
+
+NOTA: Solo funciona en la misma red WiFi
+
+
+OPCION 3: SOLO LOCAL (tu computadora)
+--------------------------------------
+Para acceder solo desde tu computadora:
+
+1. Doble clic en: run.bat
+   O ejecuta: .\run.bat
+
+2. Abre: http://127.0.0.1:8000
+
+3. Para detener: Presiona Ctrl+C
+
+
+========================================
+  RESUMEN DE ARCHIVOS
+========================================
+
+iniciar_con_ngrok.bat  -> Internet (cualquier red)
+run_red.bat             -> Red local (misma WiFi)
+run.bat                 -> Solo local
+
+configurar_firewall.bat -> Configurar firewall (una vez)
+obtener_ip.bat          -> Ver tu IP local
+
+========================================
+  SOLUCION DE PROBLEMAS
+========================================
+
+Error CSRF al iniciar sesión:
+- El middleware debería solucionarlo automáticamente
+- Si persiste, agrega la URL de ngrok manualmente en settings.py
+
+Puerto 8000 en uso:
+- Cierra otras ventanas del servidor
+- O cambia el puerto: python manage.py runserver 0.0.0.0:8080
+
+ngrok no encontrado:
+- Descarga ngrok desde: https://ngrok.com/download
+- Agrégalo al PATH o usa la ruta completa
+
+========================================
+

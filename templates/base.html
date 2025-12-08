@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Aranceles</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #34495e;
+            --accent-color: #3498db;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 2rem 0;
+        }
+
+        .card {
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        .btn-primary:hover {
+            background-color: #2980b9;
+            border-color: #2980b9;
+        }
+
+        .search-btn-custom {
+            background: linear-gradient(90deg, #3498db 0%, #2980b9 100%);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 42px;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            margin-left: -8px;
+            transition: background 0.3s, box-shadow 0.3s;
+            box-shadow: 0 2px 6px rgba(52,152,219,0.15);
+        }
+        .search-btn-custom:hover, .search-btn-custom:focus {
+            background: linear-gradient(90deg, #2980b9 0%, #3498db 100%);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(52,152,219,0.25);
+        }
+
+        .search-btn-custom i {
+            font-size: 1.5rem;
+            color: #fff;
+            margin: 0;
+        }
+        /* Responsive global styles: make tables and layout adapt to small screens
+           without editing each template. Tables will be wrapped into a scrollable
+           container when needed. */
+        .table-responsive-custom {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 1rem;
+        }
+
+        table {
+            width: 100%;
+            max-width: 100%;
+            border-collapse: collapse;
+        }
+
+        /* By default allow table cells to wrap on larger screens so desktop
+           displays look normal. On small viewports we force no-wrap so the
+           wrapper provides a horizontal scroll instead of awkward stacked cells. */
+        .table td, .table th {
+            white-space: normal;
+        }
+
+        /* Tweak spacing and font sizes on smaller viewports */
+        @media (max-width: 768px) {
+            .card {
+                padding: 1rem;
+            }
+            .main-content {
+                padding: 1rem 0;
+            }
+            .table {
+                font-size: 0.95rem;
+            }
+            /* On smaller screens prefer nowrap so horizontal scrolling is used
+               instead of wrapping that breaks table layout */
+            .table td, .table th {
+                white-space: nowrap;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .search-btn-custom {
+                width: 38px;
+                height: 38px;
+                font-size: 1.1rem;
+            }
+            .card {
+                padding: 0.8rem;
+            }
+            .table {
+                font-size: 0.85rem;
+            }
+            .btn {
+                font-size: 0.9rem;
+                padding: 0.45rem 0.6rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    {% if messages %}
+    <div class="container mt-3">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="main-content">
+        <div class="container">
+            {% block content %}
+            {% endblock %}
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Wrap all plain <table> elements in a responsive wrapper on DOMContentLoaded
+        // so existing templates don't need to be edited one-by-one.
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                document.querySelectorAll('table').forEach(function(tbl) {
+                    // skip tables that are already in a responsive wrapper
+                    if (!tbl.closest('.table-responsive') && !tbl.closest('.table-responsive-custom')) {
+                        var wrapper = document.createElement('div');
+                        wrapper.className = 'table-responsive-custom';
+                        tbl.parentNode.insertBefore(wrapper, tbl);
+                        wrapper.appendChild(tbl);
+                    }
+                });
+            } catch (e) {
+                // Fail silently to avoid breaking pages if JS errors occur
+                console && console.warn && console.warn('Table wrapping script error:', e);
+            }
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{% url 'central:home' %}" class="btn btn-outline-primary">
+        <i class="fas fa-arrow-left me-2"></i>Volver al Dashboard
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-plus me-2"></i>
+                    Crear Nuevo Rol
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="accion" value="crear_rol">
+                    
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre del Rol *</label>
+                        <input type="text" class="form-control" id="nombre" name="nombre" required>
+                        <small class="form-text text-muted">Ej: Administrador, Despachador de Aduana, etc.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="3" placeholder="Describe las funciones y responsabilidades de este rol"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Permisos del Sistema</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="permisos_arancel" name="permisos_arancel" checked>
+                            <label class="form-check-label" for="permisos_arancel">
+                                <i class="fas fa-search me-1"></i>Acceso a Aranceles
+                                <small class="d-block text-muted">Buscar y consultar información de aranceles</small>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="permisos_admin" name="permisos_admin">
+                            <label class="form-check-label" for="permisos_admin">
+                                <i class="fas fa-cog me-1"></i>Panel de Administración
+                                <small class="d-block text-muted">Acceso al panel de administración de Django</small>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="permisos_usuarios" name="permisos_usuarios">
+                            <label class="form-check-label" for="permisos_usuarios">
+                                <i class="fas fa-users me-1"></i>Gestión de Usuarios
+                                <small class="d-block text-muted">Crear, editar y gestionar usuarios y roles</small>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-save me-2"></i>Crear Rol
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>
+                    Roles del Sistema
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if roles %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Descripción</th>
+                                <th>Permisos</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rol in roles %}
+                            <tr>
+                                <td>
+                                    <strong>
+                                        {% if rol.nombre == 'Administrador' %}
+                                            <i class="fas fa-user-shield me-1 text-danger"></i>
+                                        {% elif rol.nombre == 'Despachador de Aduana' %}
+                                            <i class="fas fa-shipping-fast me-1 text-info"></i>
+                                        {% else %}
+                                            <i class="fas fa-user me-1"></i>
+                                        {% endif %}
+                                        {{ rol.nombre }}
+                                    </strong>
+                                </td>
+                                <td>
+                                    {{ rol.descripcion|default:"Sin descripción"|truncatechars:60 }}
+                                </td>
+                                <td>
+                                    {% if rol.permisos_arancel %}
+                                        <span class="badge bg-success me-1" title="Acceso a Aranceles">
+                                            <i class="fas fa-search"></i>
+                                        </span>
+                                    {% endif %}
+                                    {% if rol.permisos_admin %}
+                                        <span class="badge bg-warning me-1" title="Panel de Administración">
+                                            <i class="fas fa-cog"></i>
+                                        </span>
+                                    {% endif %}
+                                    {% if rol.permisos_usuarios %}
+                                        <span class="badge bg-danger me-1" title="Gestión de Usuarios">
+                                            <i class="fas fa-users"></i>
+                                        </span>
+                                    {% endif %}
+                                    {% if not rol.permisos_arancel and not rol.permisos_admin and not rol.permisos_usuarios %}
+                                        <span class="text-muted">Sin permisos</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editarRol{{ rol.id }}">
+                                            <i class="fas fa-edit"></i> Editar
+                                        </button>
+                                        {% if rol.nombre != 'Administrador' and rol.nombre != 'Despachador de Aduana' %}
+                                        <form method="post" style="display: inline;" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este rol?')">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="rol_id" value="{{ rol.id }}">
+                                            <input type="hidden" name="accion" value="eliminar_rol">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash"></i> Eliminar
+                                            </button>
+                                        </form>
+                                        {% else %}
+                                        <button class="btn btn-sm btn-outline-secondary" disabled title="No se puede eliminar este rol del sistema">
+                                            <i class="fas fa-lock"></i> Protegido
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No hay roles definidos. Crea el primer rol usando el formulario.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modales para editar roles -->
+{% for rol in roles %}
+<div class="modal fade" id="editarRol{{ rol.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>
+                    Editar Rol: {{ rol.nombre }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="editar_rol">
+                <input type="hidden" name="rol_id" value="{{ rol.id }}">
+                
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nombre_edit_{{ rol.id }}" class="form-label">Nombre del Rol *</label>
+                        <input type="text" class="form-control" id="nombre_edit_{{ rol.id }}" name="nombre" value="{{ rol.nombre }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="descripcion_edit_{{ rol.id }}" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="descripcion_edit_{{ rol.id }}" name="descripcion" rows="3">{{ rol.descripcion }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Permisos del Sistema</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="permisos_arancel_edit_{{ rol.id }}" name="permisos_arancel" {% if rol.permisos_arancel %}checked{% endif %}>
+                            <label class="form-check-label" for="permisos_arancel_edit_{{ rol.id }}">
+                                <i class="fas fa-search me-1"></i>Acceso a Aranceles
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="permisos_admin_edit_{{ rol.id }}" name="permisos_admin" {% if rol.permisos_admin %}checked{% endif %}>
+                            <label class="form-check-label" for="permisos_admin_edit_{{ rol.id }}">
+                                <i class="fas fa-cog me-1"></i>Panel de Administración
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="permisos_usuarios_edit_{{ rol.id }}" name="permisos_usuarios" {% if rol.permisos_usuarios %}checked{% endif %}>
+                            <label class="form-check-label" for="permisos_usuarios_edit_{{ rol.id }}">
+                                <i class="fas fa-users me-1"></i>Gestión de Usuarios
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %} 

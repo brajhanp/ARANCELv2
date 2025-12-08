@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{% url 'central:home' %}" class="btn btn-outline-primary">
+        <i class="fas fa-arrow-left me-2"></i>Volver al inicio
+    </a>
+</div>
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-list-ol me-2"></i>
+                    Detalles de la Partida
+                </h4>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary btn-sm btn-copiar" 
+                            data-codigo="{{ partida.codigo }}" 
+                            data-descripcion="{{ partida.descripcion|replace_none }}"
+                            title="Copiar código y descripción">
+                        <i class="fas fa-copy me-1"></i>Copiar código y descripción
+                    </button>
+                    <a href="{% url 'arancel:capitulo_detail' partida.capitulo.id %}" class="btn btn-outline-dark btn-sm">
+                        <i class="fas fa-book me-1"></i> Ver Capítulo
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">ID:</dt>
+                    <dd class="col-sm-8">{{ partida.id }}</dd>
+                    <dt class="col-sm-4">Código:</dt>
+                    <dd class="col-sm-8">{{ partida.codigo|replace_none }}</dd>
+                    <dt class="col-sm-4">Descripción:</dt>
+                    <dd class="col-sm-8">{{ partida.descripcion|replace_none }}</dd>
+                </dl>
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{% url 'arancel:capitulo_detail' partida.capitulo.id %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Volver al Capítulo
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-table me-2"></i>
+                    Subpartidas en esta Partida
+                </h5>
+            </div>
+            <div class="card-body">
+                {% with subpartidas=partida.subpartidas.all %}
+                {% if subpartidas %}
+                <ul class="list-group">
+                    {% for subpartida in subpartidas %}
+                        {% if subpartida.codigo != partida.codigo %}
+                            {% if subpartida.codigo|is_descriptive_code %}
+                                <li class="list-group-item{% if request.GET.highlight|default:'' == subpartida.id|stringformat:'s' %} resaltado-titulo{% endif %}" id="titulo-{{ subpartida.id }}">
+                                    <h6 class="mb-0 text-primary">
+                                        <strong>{{ subpartida.descripcion|replace_none }}</strong>
+                                    </h6>
+                                </li>
+                            {% else %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span>
+                                        <span class="badge bg-info me-2"><i class="fas fa-table me-1"></i>Subpartida</span>
+                                        <strong>{{ subpartida.codigo|replace_none }}</strong> - {{ subpartida.descripcion|replace_none|truncatechars:60 }}
+                                    </span>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-primary btn-sm btn-copiar" 
+                                                data-codigo="{{ subpartida.codigo|replace_none }}" 
+                                                data-descripcion="{{ subpartida.descripcion|replace_none }}"
+                                                title="Copiar código y descripción">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                        <a href="{% url 'arancel:subpartida_detail' subpartida.id %}" class="btn btn-sm btn-info">Ver</a>
+                                    </div>
+                                </li>
+                            {% endif %}
+                        {% endif %}
+                    {% empty %}
+                    <li class="list-group-item text-center text-muted">
+                        No hay subpartidas en esta partida.
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="alert alert-info mb-0">No hay subpartidas en esta partida.</div>
+                {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if request.GET.highlight %}
+<style>
+.resaltado-titulo {
+    background-color: #fff3b0 !important;
+    transition: background-color 1s;
+}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var id = '{{ request.GET.highlight }}';
+    var el = document.getElementById('titulo-' + id);
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('resaltado-titulo');
+        setTimeout(function() {
+            el.classList.remove('resaltado-titulo');
+        }, 3000);
+    }
+});
+</script>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Función para copiar código y descripción al portapapeles
+    function copiarCodigoDescripcion(codigo, descripcion) {
+        // Formato estándar: CÓDIGO - Descripción
+        const texto = codigo + ' - ' + descripcion;
+        
+        // Usar la API del portapapeles
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(texto).then(function() {
+                // Éxito - el feedback visual se maneja en el event listener
+            }).catch(function(err) {
+                console.error('Error al copiar:', err);
+                alert('Error al copiar al portapapeles. Por favor, copia manualmente: ' + texto);
+            });
+        } else {
+            // Fallback para navegadores antiguos
+            const textarea = document.createElement('textarea');
+            textarea.value = texto;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                alert('Copiado: ' + texto);
+            } catch (err) {
+                alert('Error al copiar. Por favor, copia manualmente: ' + texto);
+            }
+            document.body.removeChild(textarea);
+        }
+    }
+    
+    // Agregar event listeners a todos los botones de copiar
+    document.querySelectorAll('.btn-copiar').forEach(function(boton) {
+        boton.addEventListener('click', function() {
+            const codigo = this.getAttribute('data-codigo');
+            const descripcion = this.getAttribute('data-descripcion');
+            
+            if (codigo && descripcion) {
+                copiarCodigoDescripcion(codigo, descripcion);
+                
+                // Feedback visual
+                const originalHTML = this.innerHTML;
+                const originalClass = this.className;
+                this.innerHTML = '<i class="fas fa-check"></i>';
+                this.classList.remove('btn-primary');
+                this.classList.add('btn-success');
+                
+                setTimeout(function() {
+                    boton.innerHTML = originalHTML;
+                    boton.className = originalClass;
+                }, 2000);
+            }
+        });
+    });
+});
+</script>
+{% endblock %} 

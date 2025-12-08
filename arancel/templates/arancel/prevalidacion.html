@@ -1,0 +1,578 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-check-double"></i> Pre-validación de Requisitos</h2>
+            <p class="text-muted">Verifique los requisitos adicionales para su código arancelario</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-search text-primary me-2"></i>
+                        Buscar Código Arancelario
+                    </h5>
+                    <div class="input-group mb-3">
+                        <span class="input-group-text bg-light">
+                            <i class="fas fa-barcode"></i>
+                        </span>
+                        <input type="text" id="codigo-input" class="form-control form-control-lg" 
+                               placeholder="Ingrese el código arancelario..."
+                               autocomplete="off">
+                        <button class="btn btn-primary btn-lg" type="button" id="validar-btn">
+                            <i class="fas fa-check-circle me-1"></i> Validar
+                        </button>
+                    </div>
+                    <div id="sugerencias-container" class="list-group mt-2 shadow-sm" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div id="resultado-container" style="display: none;">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="card-title mb-0 d-flex align-items-center">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Código: <span id="codigo-titulo" class="ms-2 fw-bold"></span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info mb-4">
+                            <i class="fas fa-box me-2"></i>
+                            <strong>Descripción de la Mercancía:</strong>
+                            <p id="descripcion-mercancia" class="mb-0 mt-2 ms-4"></p>
+                        </div>
+                        
+                        <div id="alertas-container" class="mb-4"></div>
+                        
+                        <!-- Panel de Resumen Rápido -->
+                        <div id="resumen-requisitos" class="mb-4 p-3 bg-light rounded">
+                            <h6 class="mb-3">
+                                <i class="fas fa-clipboard-check me-2"></i>
+                                Resumen de Requisitos
+                            </h6>
+                            <div class="d-flex justify-content-around text-center">
+                                <div id="resumen-permiso" class="requisito-resumen">
+                                    <i class="fas fa-file-alt fa-2x mb-2"></i>
+                                    <br>
+                                    <span class="d-block">Permiso</span>
+                                    <span class="badge rounded-pill"></span>
+                                </div>
+                                <div id="resumen-licencia" class="requisito-resumen">
+                                    <i class="fas fa-id-card fa-2x mb-2"></i>
+                                    <br>
+                                    <span class="d-block">Licencia</span>
+                                    <span class="badge rounded-pill"></span>
+                                </div>
+                                <div id="resumen-cupo" class="requisito-resumen">
+                                    <i class="fas fa-chart-pie fa-2x mb-2"></i>
+                                    <br>
+                                    <span class="d-block">Cupo</span>
+                                    <span class="badge rounded-pill"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="requisitos-container mt-4">
+                            <h6 class="mb-3">Estado de Requisitos:</h6>
+                            
+                            <!-- Permiso -->
+                            <div id="permiso-container" class="requisito-item mb-3" style="display: none;">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="fas fa-file-alt me-2"></i>
+                                            <span class="fw-bold">Permiso</span>
+                                        </div>
+                                        <div id="permiso-estado-badge" class="estado-badge"></div>
+                                    </div>
+                                    <div class="card-body">
+                                        <p id="permiso-detalle" class="mb-2"></p>
+                                        <small id="permiso-entidad" class="text-muted d-block mb-3"></small>
+                                        <div id="permiso-enlace-container" class="mb-3" style="display: none;">
+                                            <a id="permiso-enlace" href="#" target="_blank" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-external-link-alt me-1"></i> Acceder al Permiso
+                                            </a>
+                                        </div>
+                                        <div class="progress mb-2" style="height: 5px;">
+                                            <div id="permiso-progress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mt-3">
+                                            <select id="permiso-estado" class="form-select form-select-sm estado-select" style="width: auto;">
+                                                <option value="pendiente">Pendiente</option>
+                                                <option value="en_proceso">En Proceso</option>
+                                                <option value="completado">Completado</option>
+                                            </select>
+                                            <button class="btn btn-sm btn-outline-primary" onclick="mostrarDetallesPermiso()">
+                                                <i class="fas fa-info-circle"></i> Ver Detalles
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Licencia -->
+                            <div id="licencia-container" class="requisito-item mb-3" style="display: none;">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="fas fa-id-card me-2"></i>
+                                            <span class="fw-bold">Licencia</span>
+                                        </div>
+                                        <div id="licencia-estado-badge" class="estado-badge"></div>
+                                    </div>
+                                    <div class="card-body">
+                                        <p id="licencia-detalle" class="mb-2"></p>
+                                        <small id="licencia-entidad" class="text-muted d-block mb-3"></small>
+                                        <div class="progress mb-2" style="height: 5px;">
+                                            <div id="licencia-progress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mt-3">
+                                            <select id="licencia-estado" class="form-select form-select-sm estado-select" style="width: auto;">
+                                                <option value="pendiente">Pendiente</option>
+                                                <option value="en_proceso">En Proceso</option>
+                                                <option value="completado">Completado</option>
+                                            </select>
+                                            <button class="btn btn-sm btn-outline-primary" onclick="mostrarDetallesLicencia()">
+                                                <i class="fas fa-info-circle"></i> Ver Detalles
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Cupo -->
+                            <div id="cupo-container" class="requisito-item mb-3" style="display: none;">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="fas fa-chart-pie me-2"></i>
+                                            <span class="fw-bold">Cupo</span>
+                                        </div>
+                                        <div id="cupo-estado-badge" class="estado-badge"></div>
+                                    </div>
+                                    <div class="card-body">
+                                        <p id="cupo-detalle" class="mb-2"></p>
+                                        <small id="cupo-entidad" class="text-muted d-block mb-3"></small>
+                                        <div class="progress mb-2" style="height: 5px;">
+                                            <div id="cupo-progress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mt-3">
+                                            <select id="cupo-estado" class="form-select form-select-sm estado-select" style="width: auto;">
+                                                <option value="pendiente">Pendiente</option>
+                                                <option value="en_proceso">En Proceso</option>
+                                                <option value="completado">Completado</option>
+                                            </select>
+                                            <button class="btn btn-sm btn-outline-primary" onclick="mostrarDetallesCupo()">
+                                                <i class="fas fa-info-circle"></i> Ver Detalles
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <style>
+                            .estado-badge {
+                                padding: 0.35rem 0.75rem;
+                                border-radius: 0.5rem;
+                                font-size: 0.875rem;
+                                font-weight: 600;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                                transition: all 0.3s ease;
+                            }
+                            .estado-badge.pendiente {
+                                background-color: #ffc107;
+                                color: #000;
+                            }
+                            .estado-badge.en-proceso {
+                                background-color: #17a2b8;
+                                color: #fff;
+                            }
+                            .estado-badge.completado {
+                                background-color: #28a745;
+                                color: #fff;
+                            }
+                            .progress {
+                                height: 8px;
+                                border-radius: 4px;
+                                background-color: #e9ecef;
+                                overflow: hidden;
+                            }
+                            .progress-bar {
+                                transition: width 0.6s ease;
+                                background-image: linear-gradient(45deg, 
+                                    rgba(255,255,255,.15) 25%, 
+                                    transparent 25%, 
+                                    transparent 50%, 
+                                    rgba(255,255,255,.15) 50%, 
+                                    rgba(255,255,255,.15) 75%, 
+                                    transparent 75%, 
+                                    transparent);
+                                background-size: 1rem 1rem;
+                                animation: progress-bar-stripes 1s linear infinite;
+                            }
+                            @keyframes progress-bar-stripes {
+                                0% { background-position-x: 1rem; }
+                            }
+                            .estado-select {
+                                border-radius: 0.5rem;
+                                border: 2px solid #ced4da;
+                                padding: 0.375rem 2rem 0.375rem 1rem;
+                                font-weight: 500;
+                                transition: all 0.2s ease;
+                            }
+                            .estado-select:hover {
+                                border-color: #80bdff;
+                                box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+                            }
+                            .card {
+                                border: none;
+                                box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.1);
+                                transition: transform 0.3s ease;
+                            }
+                            .card:hover {
+                                transform: translateY(-5px);
+                            }
+                            .requisito-resumen {
+                                padding: 1rem;
+                                border-radius: 0.5rem;
+                                background: white;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                                transition: all 0.3s ease;
+                            }
+                            .requisito-resumen:hover {
+                                transform: translateY(-3px);
+                                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                            }
+                            .requisito-resumen i {
+                                color: #6c757d;
+                            }
+                            .requisito-resumen .badge {
+                                margin-top: 0.5rem;
+                                padding: 0.5rem 1rem;
+                                font-size: 0.875rem;
+                                font-weight: 600;
+                            }
+                            /* Efectos de hover para botones */
+                            .btn {
+                                transition: all 0.3s ease;
+                            }
+                            .btn:hover {
+                                transform: translateY(-2px);
+                                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                            }
+                            /* Animación para alertas */
+                            .alert {
+                                animation: slideIn 0.5s ease-out;
+                                border-left: 5px solid;
+                            }
+                            @keyframes slideIn {
+                                from {
+                                    transform: translateY(-10px);
+                                    opacity: 0;
+                                }
+                                to {
+                                    transform: translateY(0);
+                                    opacity: 1;
+                                }
+                            }
+                            /* Estilos para las sugerencias */
+                            #sugerencias-container .list-group-item {
+                                border-left: 4px solid transparent;
+                                transition: all 0.2s ease;
+                            }
+                            #sugerencias-container .list-group-item:hover {
+                                border-left-color: #007bff;
+                                background-color: #f8f9fa;
+                            }
+                            </style>
+                        </div>
+                        
+                        <div id="instrucciones-container" class="mt-4 p-3 bg-light rounded" style="display: none;">
+                            <h6><i class="fas fa-tasks me-2"></i>Pasos para completar los requisitos:</h6>
+                            <div id="instrucciones-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const codigoInput = document.getElementById('codigo-input');
+    const validarBtn = document.getElementById('validar-btn');
+    const sugerenciasContainer = document.getElementById('sugerencias-container');
+    const resultadoContainer = document.getElementById('resultado-container');
+    
+    // Función para validar un código arancelario
+    async function validarCodigo(codigo) {
+        try {
+            const response = await fetch(`/arancel/api/prevalidacion/${codigo}/`);
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Error al validar el código');
+            }
+            
+            mostrarResultados(data);
+        } catch (error) {
+            mostrarError(error.message);
+        }
+    }
+    
+    // Función para mostrar los resultados
+    function mostrarResultados(data) {
+        resultadoContainer.style.display = 'block';
+        document.getElementById('codigo-titulo').textContent = data.codigo;
+        document.getElementById('descripcion-mercancia').textContent = data.descripcion;
+        
+        // Limpiar alertas anteriores
+        const alertasContainer = document.getElementById('alertas-container');
+        alertasContainer.innerHTML = '';
+        
+        // Mostrar alertas según los requisitos
+        if ((data.requiere_permiso && data.estado_permiso !== 'no_aplica') || (data.requiere_licencia && data.estado_licencia !== 'no_aplica') || (data.requiere_cupo && data.estado_cupo !== 'no_aplica')) {
+            let requisitosNecesarios = [];
+            if (data.requiere_permiso && data.estado_permiso !== 'no_aplica') requisitosNecesarios.push('permiso');
+            if (data.requiere_licencia && data.estado_licencia !== 'no_aplica') requisitosNecesarios.push('licencia');
+            if (data.requiere_cupo && data.estado_cupo !== 'no_aplica') requisitosNecesarios.push('cupo');
+            
+            const requisitosTexto = requisitosNecesarios.join(', ');
+            const alertaHtml = `
+                <div class="alert alert-warning border-warning">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+                        </div>
+                        <div>
+                            <h5 class="alert-heading mb-1">¡Atención! Requisitos Adicionales Requeridos</h5>
+                            <p class="mb-0">Este código arancelario requiere: <strong>${requisitosTexto}</strong></p>
+                        </div>
+                    </div>
+                    <hr>
+                    <p class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Por favor, complete todos los requisitos antes de continuar con el despacho aduanero.
+                    </p>
+                </div>
+            `;
+            alertasContainer.innerHTML = alertaHtml;
+        }
+        
+        // Actualizar sección de permiso
+        const permisoContainer = document.getElementById('permiso-container');
+        // Mostrar entidad/detalle solo si efectivamente requiere permiso y no está marcado como 'no_aplica'
+        if (data.requiere_permiso && data.estado_permiso !== 'no_aplica') {
+            permisoContainer.style.display = 'block';
+            document.getElementById('permiso-detalle').textContent = data.detalle_permiso;
+            document.getElementById('permiso-entidad').textContent = `Entidad: ${data.entidad_permiso}`;
+            
+            // Mostrar enlace si existe URL en el detalle
+            const permisoEnlaceContainer = document.getElementById('permiso-enlace-container');
+            const permisoEnlace = document.getElementById('permiso-enlace');
+            if (data.detalle_permiso && (data.detalle_permiso.includes('http://') || data.detalle_permiso.includes('https://'))) {
+                // Extraer URL si está en el formato "Descripción - https://..."
+                const urlMatch = data.detalle_permiso.match(/(https?:\/\/[^\s]+)/);
+                if (urlMatch) {
+                    permisoEnlace.href = urlMatch[1];
+                    permisoEnlaceContainer.style.display = 'block';
+                } else {
+                    permisoEnlaceContainer.style.display = 'none';
+                }
+            } else {
+                permisoEnlaceContainer.style.display = 'none';
+            }
+            
+            actualizarEstadoVisual('permiso', data.estado_permiso || 'pendiente');
+        } else {
+            permisoContainer.style.display = 'none';
+        }
+        
+        // Actualizar sección de licencia
+        const licenciaContainer = document.getElementById('licencia-container');
+        if (data.requiere_licencia && data.estado_licencia !== 'no_aplica') {
+            licenciaContainer.style.display = 'block';
+            document.getElementById('licencia-detalle').textContent = data.detalle_licencia;
+            document.getElementById('licencia-entidad').textContent = `Entidad: ${data.entidad_licencia}`;
+            actualizarEstadoVisual('licencia', data.estado_licencia || 'pendiente');
+        } else {
+            licenciaContainer.style.display = 'none';
+        }
+        
+        // Actualizar sección de cupo
+        const cupoContainer = document.getElementById('cupo-container');
+        if (data.requiere_cupo && data.estado_cupo !== 'no_aplica') {
+            cupoContainer.style.display = 'block';
+            document.getElementById('cupo-detalle').textContent = data.detalle_cupo;
+            document.getElementById('cupo-entidad').textContent = `Entidad: ${data.entidad_cupo}`;
+            actualizarEstadoVisual('cupo', data.estado_cupo || 'pendiente');
+        } else {
+            cupoContainer.style.display = 'none';
+        }
+    }
+    
+    // Función para actualizar el estado visual de un requisito
+    function actualizarEstadoVisual(tipo, estado) {
+        const estadoSelect = document.getElementById(`${tipo}-estado`);
+        const estadoBadge = document.getElementById(`${tipo}-estado-badge`);
+        const progressBar = document.getElementById(`${tipo}-progress`);
+        
+        // Actualizar select
+        estadoSelect.value = estado;
+        
+        // Actualizar badge
+        let badgeClass = '';
+        let badgeText = '';
+        let progressValue = 0;
+        
+        switch(estado) {
+            case 'pendiente':
+                badgeClass = 'bg-warning text-dark';
+                badgeText = 'Pendiente';
+                progressValue = 0;
+                break;
+            case 'en_proceso':
+                badgeClass = 'bg-info text-white';
+                badgeText = 'En Proceso';
+                progressValue = 50;
+                break;
+            case 'completado':
+                badgeClass = 'bg-success text-white';
+                badgeText = 'Completado';
+                progressValue = 100;
+                break;
+        }
+        
+        estadoBadge.className = `estado-badge ${badgeClass}`;
+        estadoBadge.textContent = badgeText;
+        
+        // Actualizar barra de progreso
+        progressBar.style.width = `${progressValue}%`;
+        progressBar.className = `progress-bar bg-${badgeClass.split(' ')[0].replace('bg-', '')}`;
+    }
+    
+    // Agregar event listeners para los selects de estado
+    ['permiso', 'licencia', 'cupo'].forEach(tipo => {
+        const select = document.getElementById(`${tipo}-estado`);
+        if (select) {
+            select.addEventListener('change', (e) => {
+                actualizarEstadoVisual(tipo, e.target.value);
+                // Aquí se podría agregar una llamada API para guardar el estado
+            });
+        }
+    });
+        
+        // Mostrar instrucciones si existen
+        const instruccionesContainer = document.getElementById('instrucciones-container');
+        const instruccionesContent = document.getElementById('instrucciones-content');
+        if (data.instrucciones_validacion) {
+            instruccionesContainer.style.display = 'block';
+            instruccionesContent.innerHTML = data.instrucciones_validacion.replace(/\n/g, '<br>');
+        } else {
+            instruccionesContainer.style.display = 'none';
+        }
+    }
+    
+    // Función para mostrar errores
+    function mostrarError(mensaje) {
+        const alertasContainer = document.getElementById('alertas-container');
+        alertasContainer.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-times-circle me-2"></i>
+                ${mensaje}
+            </div>
+        `;
+        resultadoContainer.style.display = 'block';
+    }
+    
+    // Evento de clic en el botón de validar
+    validarBtn.addEventListener('click', () => {
+        const codigo = codigoInput.value.trim();
+        if (codigo) {
+            validarCodigo(codigo);
+            sugerenciasContainer.style.display = 'none';
+        }
+    });
+    
+    // Autocompletado al escribir
+    codigoInput.addEventListener('input', async function() {
+        const valor = this.value.trim();
+        if (valor.length < 2) {
+            sugerenciasContainer.style.display = 'none';
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/arancel/autocomplete/?q=${encodeURIComponent(valor)}`);
+            const data = await response.json();
+            
+            sugerenciasContainer.innerHTML = '';
+            if (data.length === 0) {
+                sugerenciasContainer.style.display = 'none';
+                return;
+            }
+            
+            data.forEach(item => {
+                if (item.codigo) {
+                    const sugerencia = document.createElement('button');
+                    sugerencia.className = 'list-group-item list-group-item-action';
+                    sugerencia.innerHTML = `
+                        <strong>${item.codigo}</strong>
+                        <br>
+                        <small>${item.descripcion || ''}</small>
+                    `;
+                    sugerencia.addEventListener('click', () => {
+                        codigoInput.value = item.codigo;
+                        sugerenciasContainer.style.display = 'none';
+                        validarCodigo(item.codigo);
+                    });
+                    sugerenciasContainer.appendChild(sugerencia);
+                }
+            });
+            
+            sugerenciasContainer.style.display = 'block';
+        } catch (error) {
+            console.error('Error en autocompletado:', error);
+        }
+    });
+    
+    // Cerrar sugerencias al hacer clic fuera
+    document.addEventListener('click', function(e) {
+        if (!codigoInput.contains(e.target) && !sugerenciasContainer.contains(e.target)) {
+            sugerenciasContainer.style.display = 'none';
+        }
+    });
+    
+    // Función para mostrar detalles del permiso
+    window.mostrarDetallesPermiso = function() {
+        const detalle = document.getElementById('permiso-detalle').textContent;
+        const entidad = document.getElementById('permiso-entidad').textContent;
+        alert(`${entidad}\n\n${detalle}`);
+    };
+    
+    // Función para mostrar detalles de la licencia
+    window.mostrarDetallesLicencia = function() {
+        const detalle = document.getElementById('licencia-detalle').textContent;
+        const entidad = document.getElementById('licencia-entidad').textContent;
+        alert(`${entidad}\n\n${detalle}`);
+    };
+    
+    // Función para mostrar detalles del cupo
+    window.mostrarDetallesCupo = function() {
+        const detalle = document.getElementById('cupo-detalle').textContent;
+        const entidad = document.getElementById('cupo-entidad').textContent;
+        alert(`${entidad}\n\n${detalle}`);
+    };
+});
+</script>
+{% endblock %}
+{% endblock %}

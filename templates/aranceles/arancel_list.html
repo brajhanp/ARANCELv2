@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2 class="mb-4">
+            <i class="fas fa-list me-2"></i>
+            Lista de Aranceles
+        </h2>
+    </div>
+    <div class="col-auto">
+        <a href="{% url 'aranceles:arancel_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>
+            Nuevo Arancel
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Valor</th>
+                        <th>Fecha de Creación</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for arancel in aranceles %}
+                    <tr>
+                        <td>{{ arancel.id }}</td>
+                        <td>{{ arancel.nombre }}</td>
+                        <td>${{ arancel.valor|floatformat:2 }}</td>
+                        <td>{{ arancel.fecha_creacion|date:"d/m/Y" }}</td>
+                        <td>
+                            <div class="btn-group">
+                                <a href="{% url 'aranceles:arancel_detail' arancel.id %}" class="btn btn-sm btn-info">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'aranceles:arancel_update' arancel.id %}" class="btn btn-sm btn-warning">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'aranceles:arancel_delete' arancel.id %}" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">
+                            <div class="alert alert-info mb-0">
+                                <i class="fas fa-info-circle me-2"></i>
+                                No hay aranceles registrados.
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %} 

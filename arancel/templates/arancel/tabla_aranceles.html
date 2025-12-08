@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-3">
+    <a href="{% url 'central:home' %}" class="btn btn-outline-primary">
+        <i class="fas fa-arrow-left me-2"></i>Volver al Dashboard
+    </a>
+</div>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tabla de Aranceles</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .seccion {
+            margin-bottom: 40px;
+            page-break-inside: avoid;
+        }
+        .header-row {
+            background-color: #e0e0e0;
+        }
+        .subheader-row {
+            background-color: #f0f0f0;
+        }
+        .text-left {
+            text-align: left;
+        }
+        .small-text {
+            font-size: 12px;
+        }
+        .resaltado-busqueda {
+            background-color: #fff3b0 !important;
+            transition: background-color 0.5s;
+        }
+        .resaltado-palabra {
+            background-color: #ffe066 !important;
+            color: #000;
+            border-radius: 3px;
+            padding: 0 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="mb-0">Referencias de Clasificación</h1>
+        <!-- 🔹 Botón de copiar -->
+        <button id="copiar-aranceles" class="btn btn-outline-primary">
+            <i class="fas fa-copy me-2"></i>Copiar Aranceles
+        </button>
+    </div>
+
+    {% load custom_filters %}
+
+    <!-- 🔹 Contenedor para copiar -->
+    <div id="tabla-aranceles">
+        {% for seccion in secciones %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-layer-group me-2"></i>
+                    Sección {{ seccion.id }}: {{ seccion.nombre|replace_none }}
+                </h5>
+                {% if seccion.descripcion %}
+                <small>{{ seccion.descripcion|replace_none }}</small>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% for capitulo in seccion.capitulos.all %}
+                <div class="card mb-3">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-book me-2"></i>
+                            Capítulo {{ capitulo.codigo }}: {{ capitulo.nombre|replace_none }}
+                        </h6>
+                        {% if capitulo.descripcion %}
+                        <small>{{ capitulo.descripcion|replace_none }}</small>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        {% for partida in capitulo.partidas.all %}
+                        <div class="card mb-2">
+                            <div class="card-header bg-warning text-dark">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-list-ol me-2"></i>
+                                    Partida {{ partida.codigo }}: {{ partida.descripcion|replace_none }}
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Código</th>
+                                                <th>Descripción de la mercancía</th>
+                                                <th>GA %</th>
+                                                <th>ICE - IEHD</th>
+                                                <th>Unidad de Medida</th>
+                                                <th>Despacho en Frontera</th>
+                                                <th>Tipo de Doc</th>
+                                                <th>Entidad que emite</th>
+                                                <th>Disp. Legal</th>
+                                                <th>CAN ACE 36 ACE 47 VEN</th>
+                                                <th>ACE 22 Chi</th>
+                                                <th>ACE 22 Prot</th>
+                                                <th>ACE 66 MÉXICO</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for subpartida in partida.subpartidas.all %}
+                                                {% if subpartida.codigo|is_descriptive_code %}
+                                                    <tr class="table-primary">
+                                                        <td colspan="13" class="text-center">
+                                                            <strong>{{ subpartida.descripcion|replace_none }}</strong>
+                                                        </td>
+                                                    </tr>
+                                                {% else %}
+                                                    <tr id="subpartida-{{ subpartida.id }}">
+                                                        <td><strong>{{ subpartida.codigo|replace_none }}</strong></td>
+                                                        <td>{{ subpartida.descripcion|replace_none|underscore_to_space }}</td>
+                                                        <td>{{ subpartida.ga|replace_none }}</td>
+                                                        <td>{{ subpartida.ice_iehd|replace_none|underscore_to_space }}</td>
+                                                        <td>{{ subpartida.unidad_medida|replace_none|underscore_to_space }}</td>
+                                                        <td>{{ subpartida.despacho_en_frontera|replace_none|underscore_to_space }}</td>
+                                                        <td>{{ subpartida.tipo_de_doc|replace_none|underscore_to_space }}</td>
+                                                        <td>{{ subpartida.entidad_que_emite|replace_none|underscore_to_space }}</td>
+                                                        <td>{{ subpartida.disposicion_legal|replace_none|underscore_to_space }}</td>
+                                                        <td>{{ subpartida.can_ace_36_47_ven|replace_none }}</td>
+                                                        <td>{{ subpartida.ace_22_chile|replace_none }}</td>
+                                                        <td>{{ subpartida.ace_22_prot|replace_none }}</td>
+                                                        <td>{{ subpartida.ace_66_mexico|replace_none }}</td>
+                                                    </tr>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+    // 🔹 Botón para copiar aranceles
+    document.getElementById("copiar-aranceles")?.addEventListener("click", async () => {
+        try {
+            const tabla = document.querySelector("#tabla-aranceles");
+            const contenido = tabla ? tabla.innerText : "No hay aranceles visibles.";
+
+            await navigator.clipboard.writeText(contenido);
+
+            const boton = document.getElementById("copiar-aranceles");
+            const original = boton.innerHTML;
+            boton.innerHTML = '<i class="fas fa-check me-2"></i>¡Copiado!';
+            boton.classList.remove('btn-outline-primary');
+            boton.classList.add('btn-success');
+            
+            setTimeout(() => {
+                boton.innerHTML = original;
+                boton.classList.remove('btn-success');
+                boton.classList.add('btn-outline-primary');
+            }, 2000);
+        } catch (err) {
+            alert("Error al copiar: " + err);
+        }
+    });
+
+    </script>
+</body>
+</html>
+{% endblock %}

@@ -1,0 +1,379 @@
+{%extends 'base.html'%}
+{% load custom_filters %}
+{%block content%}
+<div class="container py-5">
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-8">
+            <h2 class="fw-bold">¡Bienvenido {{ user.first_name|default:user.username }}!</h2>
+            <p class="lead">Este es tu panel principal del Sistema de Aranceles.</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="d-inline-flex gap-2">
+                <a href="{% url 'central:edit_profile' %}" class="btn btn-outline-secondary">Editar perfil</a>
+                <a href="{% url 'central:change_password' %}" class="btn btn-outline-secondary">Cambiar contraseña</a>
+                <form method="post" action="{% url 'central:logout' %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger">Cerrar sesión</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-8 position-relative">
+            <form class="d-flex" method="get" action="{% url 'arancel:buscador_global' %}">
+                <input class="form-control me-2" type="search" id="busqueda-dashboard" name="q" placeholder="Buscar código o descripción..." aria-label="Buscar" aria-autocomplete="list" aria-expanded="false" role="combobox" aria-owns="sugerencias-dashboard" autocomplete="off" required>
+                <button class="search-btn-custom" type="submit" aria-label="Buscar"><i class="fas fa-arrow-right"></i></button>
+            </form>
+            <ul id="sugerencias-dashboard" class="list-group position-absolute w-100" style="z-index: 1000; max-height: 400px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" role="listbox" aria-label="Sugerencias de búsqueda"></ul>
+            <style>
+                #sugerencias-dashboard {
+                    scrollbar-width: thin;
+                    scrollbar-color: #6c757d #f8f9fa;
+                }
+                #sugerencias-dashboard::-webkit-scrollbar {
+                    width: 8px;
+                }
+                #sugerencias-dashboard::-webkit-scrollbar-track {
+                    background: #f8f9fa;
+                    border-radius: 4px;
+                }
+                #sugerencias-dashboard::-webkit-scrollbar-thumb {
+                    background-color: #6c757d;
+                    border-radius: 4px;
+                }
+                #sugerencias-dashboard::-webkit-scrollbar-thumb:hover {
+                    background-color: #495057;
+                }
+                #sugerencias-dashboard .list-group-item {
+                    border-left: none;
+                    border-right: none;
+                    padding: 0.75rem 1rem;
+                }
+            </style>
+        </div>
+    </div>
+    
+    <!-- Estadísticas del Sistema -->
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-10">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <div class="card text-center border-primary">
+                        <div class="card-body">
+                            <i class="fas fa-layer-group fa-2x text-primary mb-2"></i>
+                            <h4 class="text-primary">{{ total_secciones }}</h4>
+                            <p class="card-text">Secciones</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card text-center border-success">
+                        <div class="card-body">
+                            <i class="fas fa-book fa-2x text-success mb-2"></i>
+                            <h4 class="text-success">{{ total_capitulos }}</h4>
+                            <p class="card-text">Capítulos</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card text-center border-warning">
+                        <div class="card-body">
+                            <i class="fas fa-list-ol fa-2x text-warning mb-2"></i>
+                            <h4 class="text-warning">{{ total_partidas }}</h4>
+                            <p class="card-text">Partidas</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card text-center border-info">
+                        <div class="card-body">
+                            <i class="fas fa-table fa-2x text-info mb-2"></i>
+                            <h4 class="text-info">{{ total_subpartidas }}</h4>
+                            <p class="card-text">Subpartidas</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-8 text-center">
+            <a href="{% url 'arancel:tabla_aranceles' %}" class="btn btn-primary btn-lg me-2 mb-2">
+                <i class="fas fa-table me-2"></i>Ver Tabla de Aranceles
+            </a>
+            <a href="{% url 'central:estadisticas_gravamenes' %}" class="btn btn-success btn-lg me-2 mb-2">
+                <i class="fas fa-chart-line me-2"></i>Ver Estadísticas de Gravámenes
+            </a>
+            <a href="{% url 'arancel:seccion_list' %}" class="btn btn-outline-primary btn-lg mb-2">
+                <i class="fas fa-layer-group me-2"></i>Ver Secciones
+            </a>
+            <a href="{% url 'central:admin_redirect' %}" class="btn btn-outline-dark btn-lg mb-2 ms-2">
+                <i class="fas fa-user-shield me-2"></i>Administración
+            </a>
+        </div>
+    </div>
+    
+    <!-- Gestión de Usuarios y Roles (solo para superusuarios o usuarios con permisos) -->
+    {% if user.is_superuser or user.perfil.rol.permisos_usuarios %}
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-cog me-2"></i>
+                        Gestión de Usuarios y Roles
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <a href="{% url 'central:gestionar_usuarios' %}" class="btn btn-warning w-100">
+                                <i class="fas fa-users me-2"></i>Gestionar Usuarios
+                            </a>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <a href="{% url 'central:gestionar_roles' %}" class="btn btn-outline-warning w-100">
+                                <i class="fas fa-user-tag me-2"></i>Gestionar Roles
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-info">
+                <div class="card-header bg-info bg-opacity-10">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Historial y Exportación
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-center gap-2">
+                        <a href="{% url 'central:historial_busquedas' %}" class="btn btn-info">
+                            <i class="fas fa-clock me-2"></i>Ver Historial
+                        </a>
+                        <form action="{% url 'central:limpiar_historial' %}" method="POST" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-danger">
+                                <i class="fas fa-trash-alt me-2"></i>Limpiar Historial
+                            </button>
+                        </form>
+                        <a href="{% url 'central:exportar_historial' %}?format=excel" class="btn btn-success">
+                            <i class="fas fa-file-excel me-2"></i>Exportar a Excel
+                        </a>
+                        <a href="{% url 'central:exportar_historial' %}?format=pdf" class="btn btn-danger">
+                            <i class="fas fa-file-pdf me-2"></i>Exportar a PDF
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- APARTADO DE REPORTES DE TRAZABILIDAD -->
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-success">
+                <div class="card-header bg-success bg-opacity-10">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-alt me-2"></i>
+                        Reportes de Trazabilidad
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        Genera reportes detallados de todas las operaciones realizadas en el sistema.
+                        Incluye fecha, hora, usuario, código arancelario, resultado y acción realizada.
+                    </p>
+                    <div class="d-flex flex-wrap justify-content-center gap-2">
+                        <a href="{% url 'central:reporte_list' %}" class="btn btn-success">
+                            <i class="fas fa-file-alt me-2"></i>Ver Reportes
+                        </a>
+                        <a href="{% url 'central:exportar_reportes' %}?format=excel" class="btn btn-success">
+                            <i class="fas fa-file-excel me-2"></i>Descargar Excel
+                        </a>
+                        <a href="{% url 'central:exportar_reportes' %}?format=pdf" class="btn btn-danger">
+                            <i class="fas fa-file-pdf me-2"></i>Descargar PDF
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+// Autocompletado AJAX para dashboard
+const inputDashboard = document.getElementById('busqueda-dashboard');
+const sugerenciasDashboard = document.getElementById('sugerencias-dashboard');
+let indiceSeleccionado = -1;
+
+inputDashboard.addEventListener('input', function() {
+    indiceSeleccionado = -1;
+    const valor = this.value.trim();
+    if (valor.length < 1) {
+        sugerenciasDashboard.innerHTML = '';
+        sugerenciasDashboard.style.display = 'none';
+        inputDashboard.setAttribute('aria-expanded', 'false');
+        return;
+    }
+    fetch('/arancel/autocomplete/?q=' + encodeURIComponent(valor))
+        .then(resp => resp.json())
+        .then(data => {
+            sugerenciasDashboard.innerHTML = '';
+            if (data.length === 0) {
+                // Mostrar mensaje de "No se encontró nada"
+                const li = document.createElement('li');
+                li.className = 'list-group-item text-center text-muted py-3';
+                li.innerHTML = '<i class="fas fa-search me-2"></i>No se encontraron coincidencias. Intenta con otros términos.';
+                sugerenciasDashboard.appendChild(li);
+                sugerenciasDashboard.style.display = 'block';
+                return;
+            }
+            data.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item list-group-item-action d-flex align-items-center';
+                li.style.cursor = 'pointer';
+                li.style.transition = 'background-color 0.2s';
+                li.setAttribute('role', 'option');
+                li.setAttribute('tabindex', '-1');
+                
+                // Estilos hover
+                li.addEventListener('mouseenter', function() {
+                    this.style.backgroundColor = '#f8f9fa';
+                });
+                li.addEventListener('mouseleave', function() {
+                    this.style.backgroundColor = '';
+                });
+                
+                // Crear contenedor para el badge
+                const badgeContainer = document.createElement('div');
+                badgeContainer.className = 'd-flex flex-column align-items-center me-3';
+                
+                // Crear badge de tipo con color distintivo
+                const badge = document.createElement('span');
+                badge.className = 'badge';
+                
+                if (item.tipo === 'Partida') {
+                    badge.className += ' bg-warning text-dark';
+                    badge.innerHTML = '<i class="fas fa-list-ol"></i> P';
+                } else if (item.tipo === 'Subpartida') {
+                    badge.className += ' bg-info';
+                    badge.innerHTML = '<i class="fas fa-table"></i> SP';
+                } else if (item.tipo === 'Capítulo') {
+                    badge.className += ' bg-success';
+                    badge.innerHTML = '<i class="fas fa-book"></i> C';
+                } else if (item.tipo === 'Sección') {
+                    badge.className += ' bg-primary';
+                    badge.innerHTML = '<i class="fas fa-layer-group"></i> S';
+                }
+                
+                badgeContainer.appendChild(badge);
+                
+                // Indicador de corrección
+                if (item.es_correccion) {
+                    const correccionBadge = document.createElement('span');
+                    correccionBadge.className = 'badge bg-danger mt-1';
+                    correccionBadge.style.fontSize = '0.65rem';
+                    correccionBadge.innerHTML = '<i class="fas fa-lightbulb"></i> Sugerencia';
+                    badgeContainer.appendChild(correccionBadge);
+                }
+                
+                li.appendChild(badgeContainer);
+                
+                // Crear contenido del texto
+                const content = document.createElement('div');
+                content.className = 'flex-grow-1';
+                
+                let codigoText = item.codigo || item.nombre;
+                let descripcionText = item.descripcion || '';
+                
+                // Resaltar coincidencias en el código y descripción
+                if (valor) {
+                    const regex = new RegExp(`(${valor})`, 'gi');
+                    if (codigoText.toLowerCase().includes(valor.toLowerCase())) {
+                        codigoText = codigoText.replace(regex, '<mark>$1</mark>');
+                    }
+                    if (descripcionText.toLowerCase().includes(valor.toLowerCase())) {
+                        descripcionText = descripcionText.replace(regex, '<mark>$1</mark>');
+                    }
+                }
+                
+                let tituloExtra = '';
+                if(item.tipo === 'Subpartida' && item.titulo_desc) {
+                    tituloExtra = `<br><span style='color: #6c757d; font-style: italic; font-size: 0.9em;'>→ ${item.titulo_desc}</span>`;
+                }
+                
+                const highlightClass = item.es_correccion ? 'text-primary' : '';
+                
+                // Mostrar código y descripción en un formato más estructurado
+                content.innerHTML = `
+                    <div class="${highlightClass}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <strong style="min-width: 120px; margin-right: 10px;">${codigoText}</strong>
+                            <div style="flex: 1;">
+                                <strong style="color: #666; font-size: 0.85em;">Descripción: </strong>
+                                <span style="color: #495057; font-size: 0.95em;">${descripcionText}</span>
+                                ${tituloExtra}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                li.appendChild(content);
+                
+                // Click handler
+                li.onclick = () => {
+                    // Guardar el código original (con guiones bajos) en un atributo de datos
+                    const searchValue = item.codigo ? item.codigo.replace(/ /g, '_') : (item.nombre ? item.nombre.replace(/ /g, '_') : '');
+                    window.location.href = `/arancel/buscar/?q=${encodeURIComponent(searchValue)}`;
+                };
+                
+                sugerenciasDashboard.appendChild(li);
+            });
+            sugerenciasDashboard.style.display = 'block';
+            inputDashboard.setAttribute('aria-expanded', 'true');
+        });
+});
+// Prevenir que se cierre al hacer clic en las sugerencias
+inputDashboard.addEventListener('blur', function(e) {
+    // Verificar si el clic fue fuera del contenedor de sugerencias
+    setTimeout(() => {
+        if (!sugerenciasDashboard.contains(document.activeElement)) {
+            sugerenciasDashboard.innerHTML = '';
+            sugerenciasDashboard.style.display = 'none';
+        }
+    }, 300);
+});
+
+// Navegación con teclado
+inputDashboard.addEventListener('keydown', function(e) {
+    const items = sugerenciasDashboard.querySelectorAll('.list-group-item');
+    
+    if (e.key === 'Escape') {
+        sugerenciasDashboard.innerHTML = '';
+        sugerenciasDashboard.style.display = 'none';
+        inputDashboard.blur();
+    } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        indiceSeleccionado = (indiceSeleccionado < items.length - 1) ? indiceSeleccionado + 1 : indiceSeleccionado;
+        items.forEach((item, index) => {
+            item.style.backgroundColor = index === indiceSeleccionado ? '#e9ecef' : '';
+        });
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        indiceSeleccionado = (indiceSeleccionado > 0) ? indiceSeleccionado - 1 : -1;
+        items.forEach((item, index) => {
+            item.style.backgroundColor = index === indiceSeleccionado ? '#e9ecef' : '';
+        });
+    } else if (e.key === 'Enter' && indiceSeleccionado >= 0 && items[indiceSeleccionado]) {
+        e.preventDefault();
+        items[indiceSeleccionado].click();
+    }
+});
+</script>
+{%endblock%}

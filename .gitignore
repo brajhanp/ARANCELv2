@@ -1,0 +1,29 @@
+﻿# Virtualenv
+venv/
+.venv/
+venv_backup_*/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+build/
+dist/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment variables (secrets)
+.env
+
+# Logs
+*.log
+
+# OS files
+Thumbs.db
+.DS_Store

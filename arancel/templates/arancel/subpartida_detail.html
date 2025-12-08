@@ -1,0 +1,264 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{% url 'central:home' %}" class="btn btn-outline-primary">
+        <i class="fas fa-arrow-left me-2"></i>Volver al inicio
+    </a>
+</div>
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="mb-0 d-inline">
+                        <i class="fas fa-table me-2"></i>
+                        Detalles de la Subpartida
+                    </h4>
+                    {% if subpartida.vigente %}
+                        <span class="badge bg-success ms-3">Vigente</span>
+                    {% else %}
+                        <span class="badge bg-danger ms-3">No vigente / Sin información</span>
+                    {% endif %}
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-light btn-sm btn-copiar" 
+                            data-codigo="{{ subpartida.codigo|replace_none }}" 
+                            data-descripcion="{{ subpartida.descripcion|replace_none }}"
+                            title="Copiar código y descripción">
+                        <i class="fas fa-copy me-1"></i>Copiar código y descripción
+                    </button>
+                    <a href="{% url 'arancel:partida_detail' subpartida.partida.id %}" class="btn btn-outline-light btn-sm">
+                        <i class="fas fa-list-ol me-1"></i> Ver Partida
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">Código:</dt>
+                    <dd class="col-sm-8">{{ subpartida.codigo|replace_none }}</dd>
+                    <dt class="col-sm-4">Descripción:</dt>
+                    <dd class="col-sm-8">{{ subpartida.descripcion|replace_none }}</dd>
+                    <dt class="col-sm-4">GA (%):</dt>
+                    <dd class="col-sm-8">{{ subpartida.ga|replace_none }}</dd>
+                    <dt class="col-sm-4">ICE (%):</dt>
+                    <dd class="col-sm-8">{{ subpartida.ice|replace_none }}</dd>
+                    <dt class="col-sm-4">IEHD (%):</dt>
+                    <dd class="col-sm-8">{{ subpartida.iehd|replace_none }}</dd>
+                    <dt class="col-sm-4">Unidad de Medida:</dt>
+                    <dd class="col-sm-8">{{ subpartida.unidad_medida|replace_none }}</dd>
+                    <dt class="col-sm-4">Despacho en Frontera:</dt>
+                    <dd class="col-sm-8">{{ subpartida.despacho_en_frontera|replace_none }}</dd>
+                    <dt class="col-sm-4">Tipo de Doc:</dt>
+                    <dd class="col-sm-8">{{ subpartida.tipo_de_doc|replace_none }}</dd>
+                    <dt class="col-sm-4">Entidad que Emite:</dt>
+                    <dd class="col-sm-8">{{ subpartida.entidad_que_emite|replace_none }}</dd>
+                    <dt class="col-sm-4">Disposición Legal:</dt>
+                    <dd class="col-sm-8">{{ subpartida.disposicion_legal|replace_none }}</dd>
+                    <dt class="col-sm-4">CAN ACE 36/47 VEN:</dt>
+                    <dd class="col-sm-8">{{ subpartida.can_ace_36_47_ven|replace_none }}</dd>
+                    <dt class="col-sm-4">ACE 22 Chile:</dt>
+                    <dd class="col-sm-8">{{ subpartida.ace_22_chile|replace_none }}</dd>
+                    <dt class="col-sm-4">ACE 22 Prot:</dt>
+                    <dd class="col-sm-8">{{ subpartida.ace_22_prot|replace_none }}</dd>
+                    <dt class="col-sm-4">ACE 66 México:</dt>
+                    <dd class="col-sm-8">{{ subpartida.ace_66_mexico|replace_none }}</dd>
+                </dl>
+
+                <!-- Sección de Requisitos Adicionales -->
+                <div class="card mt-4 mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-clipboard-check me-2"></i>
+                            Requisitos Adicionales
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Permiso -->
+                            <div class="col-md-12">
+                                <div class="card h-100 {% if subpartida.entidad_permiso %}border-warning{% else %}border-success{% endif %}">
+                                    <div class="card-body">
+                                        <h5 class="card-title">
+                                            <i class="fas fa-file-alt me-2"></i>Requisitos Adicionales - Permiso
+                                            {% if subpartida.entidad_permiso %}
+                                                <span class="badge bg-warning text-dark float-end">Permiso requerido</span>
+                                            {% else %}
+                                                <span class="badge bg-success float-end">No requiere permiso</span>
+                                            {% endif %}
+                                        </h5>
+
+                                        <!-- Detalle estructurado: Tipo, Entidad, Enlace/Detalle, Estado -->
+                                        <dl class="row mb-2">
+                                            <dt class="col-sm-4">Tipo de permiso:</dt>
+                                            <dd class="col-sm-8">{% if subpartida.tipo_de_doc %}{{ subpartida.tipo_de_doc }}{% else %}-{% endif %}</dd>
+
+                                            <dt class="col-sm-4">Entidad:</dt>
+                                            <dd class="col-sm-8">
+                                                {% if subpartida.entidad_permiso %}
+                                                    {{ subpartida.entidad_permiso }}
+                                                {% elif subpartida.entidad_que_emite %}
+                                                    {{ subpartida.entidad_que_emite }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </dd>
+
+                                            <dt class="col-sm-4">Procedimiento y Enlace:</dt>
+                                            <dd class="col-sm-8">
+                                                {% if subpartida.entidad_permiso == 'SENASAG' %}
+                                                    <div class="mb-2">
+                                                        <p class="small text-muted mb-2">Para gestionar permisos del SENASAG utilice el sistema informático <strong>Patujú</strong> a través de la Ventanilla Única de Servicios (VUSU). Debe registrarse primero de forma presencial en las oficinas departamentales para obtener usuario y contraseña; luego ingrese en línea a VUSU/Patujú, seleccione el módulo requerido (Importación, Exportación, Inocuidad, etc.), complete formularios, adjunte documentos y pague las tasas. El sistema procesa la solicitud y emite el permiso electrónicamente.</p>
+                                                        <a href="https://www.senasag.gob.bo/index.php/tramites-y-servicios/gran-paititi" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-warning me-2">
+                                                            <i class="fas fa-external-link-alt me-1"></i>Acceder a Gran Paitití (SENASAG)
+                                                        </a>
+                                                        <a href="https://www.senasag.gob.bo" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary">
+                                                            Sitio SENASAG
+                                                        </a>
+                                                    </div>
+                                                {% elif subpartida.tipo_de_doc == 'C-CITES' %}
+                                                    <div class="mb-2">
+                                                        <p class="small text-muted mb-2"><strong>Procedimiento CITES (MMAYA)</strong> - El trámite para especies reguladas debe gestionarse mediante el <strong>Viceministerio de Medio Ambiente, Biodiversidad, Cambio Climático y de Gestión Forestal (MMAYA)</strong> a través de la plataforma VUCE (Ventanilla Única de Comercio Exterior). Debe presentar: carta de solicitud dirigida al Viceministerio, certificado zoosanitario/fitosanitario de SENASAG (si aplica), certificado CITES del país de origen, documentos de legalidad de captura/adquisición, factura y lista de empaque. <strong>Importante:</strong> aunque la solicitud es en línea, la presentación de documentos y el retiro del certificado son presenciales en la Dirección General de Biodiversidad y Áreas Protegidas del Viceministerio.</p>
+                                                        <a href="https://www.vuce.gob.bo/es/MMAYA_certificado_repatriacion_especies_procedimiento?utm_source=chatgpt.com" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-info me-2">
+                                                            <i class="fas fa-external-link-alt me-1"></i>MMAYA - Certificado CITES (VUCE)
+                                                        </a>
+                                                        <a href="https://www.vuce.gob.bo" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary">
+                                                            Plataforma VUCE
+                                                        </a>
+                                                    </div>
+                                                {% elif subpartida.entidad_permiso %}
+                                                    {% if subpartida.detalle_permiso %}
+                                                        <script>
+                                                            (function() {
+                                                                const detalle = "{{ subpartida.detalle_permiso|escapejs }}";
+                                                                const urls = detalle.split(' | ');
+                                                                const container = document.getElementById('detail-links-{{ subpartida.id }}');
+                                                                if (container) {
+                                                                    urls.forEach(url => {
+                                                                        if (url.includes('http')) {
+                                                                            const link = document.createElement('a');
+                                                                            link.href = url.trim();
+                                                                            link.target = '_blank';
+                                                                            link.rel = 'noopener noreferrer';
+                                                                            link.className = 'btn btn-sm btn-warning d-inline-block mb-2 me-2';
+                                                                            link.innerHTML = '<i class="fas fa-external-link-alt me-1"></i>' + url.trim();
+                                                                            container.appendChild(link);
+                                                                        }
+                                                                    });
+                                                                }
+                                                            })();
+                                                        </script>
+                                                        <div id="detail-links-{{ subpartida.id }}"></div>
+                                                    {% else %}
+                                                        <span>-</span>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <span>-</span>
+                                                {% endif %}
+                                            </dd>
+
+                                            {% if subpartida.estado_permiso and subpartida.estado_permiso != 'no_aplica' %}
+                                            <dt class="col-sm-4">Estado:</dt>
+                                            <dd class="col-sm-8">
+                                                <span class="badge {% if subpartida.estado_permiso == 'completado' %}bg-success
+                                                    {% elif subpartida.estado_permiso == 'en_proceso' %}bg-info
+                                                    {% elif subpartida.estado_permiso == 'pendiente' %}bg-warning
+                                                    {% else %}bg-secondary{% endif %}">
+                                                    {{ subpartida.estado_permiso|underscore_to_space|title }}
+                                                </span>
+                                            </dd>
+                                            {% endif %}
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if subpartida.instrucciones_validacion %}
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Instrucciones adicionales:</strong><br>
+                            {{ subpartida.instrucciones_validacion }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{% url 'arancel:partida_detail' subpartida.partida.id %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Volver a la Partida
+                    </a>
+                    {% if not subpartida.vigente %}
+                    <div class="text-end">
+                        <small class="text-muted">Si necesitas alternativas similares, prueba la búsqueda:</small>
+                        <a href="{% url 'arancel:resultados_busqueda' %}?q={{ subpartida.codigo }}" class="btn btn-outline-warning btn-sm ms-2">Buscar códigos similares</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Función para copiar código y descripción al portapapeles
+    function copiarCodigoDescripcion(codigo, descripcion) {
+        // Formato estándar: CÓDIGO - Descripción
+        const texto = codigo + ' - ' + descripcion;
+        
+        // Usar la API del portapapeles
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(texto).then(function() {
+                // Éxito - el feedback visual se maneja en el event listener
+            }).catch(function(err) {
+                console.error('Error al copiar:', err);
+                alert('Error al copiar al portapapeles. Por favor, copia manualmente: ' + texto);
+            });
+        } else {
+            // Fallback para navegadores antiguos
+            const textarea = document.createElement('textarea');
+            textarea.value = texto;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                alert('Copiado: ' + texto);
+            } catch (err) {
+                alert('Error al copiar. Por favor, copia manualmente: ' + texto);
+            }
+            document.body.removeChild(textarea);
+        }
+    }
+    
+    // Agregar event listener al botón de copiar
+    const botonCopiar = document.querySelector('.btn-copiar');
+    if (botonCopiar) {
+        botonCopiar.addEventListener('click', function() {
+            const codigo = this.getAttribute('data-codigo');
+            const descripcion = this.getAttribute('data-descripcion');
+            
+            if (codigo && descripcion) {
+                copiarCodigoDescripcion(codigo, descripcion);
+                
+                // Feedback visual
+                const originalHTML = this.innerHTML;
+                const originalClass = this.className;
+                this.innerHTML = '<i class="fas fa-check me-1"></i>¡Copiado!';
+                this.classList.remove('btn-light');
+                this.classList.add('btn-success');
+                
+                setTimeout(function() {
+                    botonCopiar.innerHTML = originalHTML;
+                    botonCopiar.className = originalClass;
+                }, 2000);
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 

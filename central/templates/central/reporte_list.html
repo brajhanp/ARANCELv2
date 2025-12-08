@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{% url 'central:home' %}" class="btn btn-outline-primary">
+        <i class="fas fa-arrow-left me-2"></i>Volver al inicio
+    </a>
+</div>
+
+<div class="container">
+    <h2 class="mb-4">
+        <i class="fas fa-file-alt me-2"></i>Reportes de Trazabilidad
+    </h2>
+
+    <!-- FILTROS -->
+    <div class="card mb-4 bg-light">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-filter me-2"></i>Filtrar Reportes
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
+                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ request.GET.fecha_inicio }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="fecha_fin" class="form-label">Fecha Fin</label>
+                    <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ request.GET.fecha_fin }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="codigo_arancelario" class="form-label">Código Arancelario</label>
+                    <input type="text" class="form-control" id="codigo_arancelario" name="codigo_arancelario" placeholder="Ej: 8504.10.20" value="{{ request.GET.codigo_arancelario }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="tipo_accion" class="form-label">Tipo de Operación</label>
+                    <select class="form-control" id="tipo_accion" name="tipo_accion">
+                        <option value="">Todas las acciones</option>
+                        <option value="búsqueda" {% if request.GET.tipo_accion == 'búsqueda' %}selected{% endif %}>Búsqueda de Código</option>
+                        <option value="consulta_detalle" {% if request.GET.tipo_accion == 'consulta_detalle' %}selected{% endif %}>Consulta de Detalle</option>
+                        <option value="clasificación" {% if request.GET.tipo_accion == 'clasificación' %}selected{% endif %}>Clasificación Realizada</option>
+                        <option value="modificación" {% if request.GET.tipo_accion == 'modificación' %}selected{% endif %}>Modificación de Clasificación</option>
+                        <option value="descarga_doc" {% if request.GET.tipo_accion == 'descarga_doc' %}selected{% endif %}>Descarga de Documento</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="resultado_operacion" class="form-label">Resultado</label>
+                    <select class="form-control" id="resultado_operacion" name="resultado_operacion">
+                        <option value="">Todos los resultados</option>
+                        <option value="exitosa" {% if request.GET.resultado_operacion == 'exitosa' %}selected{% endif %}>Exitosa</option>
+                        <option value="con_advertencia" {% if request.GET.resultado_operacion == 'con_advertencia' %}selected{% endif %}>Con Advertencia</option>
+                        <option value="rechazada" {% if request.GET.resultado_operacion == 'rechazada' %}selected{% endif %}>Rechazada</option>
+                        <option value="pendiente" {% if request.GET.resultado_operacion == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                    </select>
+                </div>
+                <div class="col-md-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-2"></i>Buscar
+                    </button>
+                    <a href="{% url 'central:reporte_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-redo me-2"></i>Limpiar Filtros
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- BOTONES DE EXPORTACIÓN -->
+    <div class="mb-3 d-flex gap-2">
+        <a href="{% url 'central:exportar_reportes' %}?format=pdf{% for key, value in request.GET.items %}{% if key != 'format' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="btn btn-danger">
+            <i class="fas fa-file-pdf me-2"></i>Descargar PDF
+        </a>
+        <a href="{% url 'central:exportar_reportes' %}?format=excel{% for key, value in request.GET.items %}{% if key != 'format' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="btn btn-success">
+            <i class="fas fa-file-excel me-2"></i>Descargar Excel
+        </a>
+        <span class="badge bg-info align-self-center">
+            Total de reportes: {{ total_reportes }}
+        </span>
+    </div>
+
+    <!-- TABLA DE REPORTES -->
+    {% if reportes %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Usuario</th>
+                    <th>Código Arancelario</th>
+                    <th>Resultado</th>
+                    <th>Acción Realizada</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for reporte in reportes %}
+                <tr>
+                    <td>{{ reporte.fecha_operacion|date:"d/m/Y" }}</td>
+                    <td>{{ reporte.fecha_operacion|time:"H:i:s" }}</td>
+                    <td>
+                        <strong>{{ reporte.usuario.username }}</strong>
+                    </td>
+                    <td>
+                        <code>{{ reporte.codigo_arancelario|default:"--" }}</code>
+                    </td>
+                    <td>
+                        <div class="text-truncate" title="{{ reporte.descripcion_clasificacion }}">
+                            {{ reporte.descripcion_clasificacion|default:"--"|truncatewords:10 }}
+                        </div>
+                    </td>
+                    <td>
+                        {% if reporte.tipo_accion == 'búsqueda' %}
+                            <span class="badge bg-info">Búsqueda de Código</span>
+                        {% elif reporte.tipo_accion == 'consulta_detalle' %}
+                            <span class="badge bg-primary">Consulta de Detalle</span>
+                        {% elif reporte.tipo_accion == 'clasificación' %}
+                            <span class="badge bg-success">Clasificación Realizada</span>
+                        {% elif reporte.tipo_accion == 'modificación' %}
+                            <span class="badge bg-warning text-dark">Modificación</span>
+                        {% elif reporte.tipo_accion == 'descarga_doc' %}
+                            <span class="badge bg-secondary">Descarga de Documento</span>
+                        {% else %}
+                            <span class="badge bg-light text-dark">{{ reporte.get_tipo_accion_display }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- PAGINACIÓN -->
+    {% if is_paginated %}
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1">Primera</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+            </li>
+            {% endif %}
+
+            <li class="page-item active">
+                <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+            </li>
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Última</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <div class="alert alert-info" role="alert">
+        <i class="fas fa-info-circle me-2"></i>
+        No hay reportes que coincidan con los filtros aplicados.
+    </div>
+    {% endif %}
+</div>
+
+<!-- Información adicional -->
+<div class="container mt-5">
+    <div class="alert alert-light border" role="alert">
+        <h5>Información de Reportes</h5>
+        <p class="mb-0">
+            Los reportes de trazabilidad registran todas las operaciones realizadas en el sistema de clasificación arancelaria.
+            Cada registro incluye la fecha, hora exacta, usuario responsable, código arancelario consultado/modificado, 
+            resultado de la operación y el tipo de acción realizada para garantizar total transparencia y auditoría.
+        </p>
+    </div>
+</div>
+{% endblock %}
