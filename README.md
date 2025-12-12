@@ -113,7 +113,29 @@ ARANCELv2/
 - Visualización de gravámenes y detalles de clasificación
 - Prevalidación de códigos arancelarios
 
-### 2. Sistema de Trazabilidad
+### 2. Sistema de Búsqueda Inteligente ⭐ (NUEVO)
+- **Diccionario de Sinónimos**: Busca automáticamente términos relacionados
+  - Bovinos: vaca ↔ bovino, res, ganado, toro, novillo
+  - Equinos: caballo ↔ equino, potro, yegua
+  - Pescados: pez ↔ peces, pescado, bacalao, salmón, trucha
+  - Aves: pollo ↔ gallina, pavo, pato
+  - Huevos, Cereales, Frutas, Verduras y más (200+ términos)
+  
+- **Búsqueda sin Agresividad con Puntos**: Ignora puntos automáticamente
+  - Busca `010121` y encuentra `0101.21.00.00`
+  - Busca `01.01.21` y encuentra `010121`
+  
+- **Corrección Automática de Errores**:
+  - Ortografía (pyspellchecker + vocabulario de BD)
+  - Códigos inválidos (similitud de Levenshtein)
+  - Sugerencias relevantes al presionar ENTER
+  
+- **Interfaz de Usuario Mejorada**:
+  - Copiar código y descripción con un clic
+  - Términos relacionados como botones clickeables
+  - Sugerencias en múltiples niveles (Exactas → Aproximadas → Con Sinónimos → Fuzzy)
+
+### 3. Sistema de Trazabilidad
 - Registro automático de todas las operaciones (búsquedas, descargas, accesos)
 - Reportes detallados con filtros por usuario, fecha, código
 - Exportación a **PDF y Excel**
@@ -122,12 +144,12 @@ ARANCELv2/
   - **Despachantes de Aduanas (usuarios normales)**: solo ven sus propios reportes e historial
   - Campo "Usuario" disponible solo en **Historial de Búsquedas** para gerentes/superusuarios
 
-### 3. Autenticación y Control de Acceso
+### 4. Autenticación y Control de Acceso
 - Login de usuarios con roles
 - Historial de operaciones por usuario
 - Acceso restringido a reportes y funciones administrativas
 
-### 4. Panel Administrativo
+### 5. Panel Administrativo
 - Interfaz de Django Admin para gestionar datos
 - Acceso: http://127.0.0.1:8000/admin/
 
@@ -174,6 +196,49 @@ py manage.py actualizar_permisos
 
 Usa este comando con precaución en entornos de producción; crea una copia de seguridad de `db.sqlite3` antes de ejecutar si corresponde.
 
+
+## Guía de Uso del Buscador Mejorado ⭐
+
+### Búsqueda por Sinónimos
+**Ejemplo 1:** Busca `"res"` en lugar de `"vaca"`
+- El sistema automáticamente busca: vaca, bovino, res, ganado vacuno, toro, novillo, becerro
+- Resultado: Mostrar productos bovinos
+
+**Ejemplo 2:** Busca `"equino"` 
+- El sistema busca: caballo, equino, potro, yegua
+- Resultado: Mostrar todos los equinos
+
+**Ejemplo 3:** Busca `"pez"`
+- El sistema busca: pez, peces, pescado, bacalao, salmón, trucha, merluza
+- Resultado: Mostrar todos los productos pesqueros
+
+### Búsqueda sin Puntos
+**Ejemplo 1:** Busca `"010121"` sin puntos
+- El sistema encuentra: `0101.21.00.00`, `0101.21`, etc.
+- Resultado: Mostrar subpartidas coincidentes
+
+**Ejemplo 2:** Busca `"0101.21.0000"` con puntos mal colocados
+- El sistema ignora los puntos automáticamente
+- Resultado: Encuentra la subpartida correcta
+
+### Corrección Automática de Errores
+**Ejemplo 1:** Busca `"cabalo"` (error ortográfico)
+- El sistema corrige a: `"caballo"`
+- Luego busca sinónimos: equino, potro, yegua
+- Resultado: Sugerencias de términos relacionados
+
+**Ejemplo 2:** Busca `"pecado"` (error ortográfico)
+- El sistema corrige a: `"pescado"`
+- Resultado: Mostrar productos pesqueros
+
+### Interfaz Mejorada
+- **Copiar con un clic**: Botón "Copiar código y descripción"
+- **Buscar sinónimos fácilmente**: Haz clic en cualquier término relacionado
+- **Ver resultados en múltiples niveles**:
+  1. Resultados exactos (prioridad alta)
+  2. Resultados aproximados (contienen la palabra)
+  3. Resultados con sinónimos
+  4. Resultados fuzzy (similitud de texto)
 
 ## Solución de Problemas
 
