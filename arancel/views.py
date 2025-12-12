@@ -14,6 +14,7 @@ from django.views.decorators.http import require_GET
 from central.models import HistorialBusqueda, Reporte
 from central.views import registrar_bitacora
 from arancel.templatetags.custom_filters import is_descriptive_code
+from arancel.sinonimos import obtener_sinonimos, expandir_busqueda_con_sinonimos, aplicar_sinonimos_a_query
 from difflib import get_close_matches
 from difflib import get_close_matches
 from django.db.models import Q # Asegúrate de que Q esté importado
@@ -180,6 +181,64 @@ def _corregir_ortografia(texto):
         # Si hay algún error, retornar el texto original
         return texto, []
 
+# Utilidad: Buscar usando sinónimos
+def _buscar_con_sinonimos(query):
+    """
+    Busca en la BD usando la query original y todos sus sinónimos.
+    Retorna un QuerySet combinado de Partida y Subpartida.
+    """
+    from django.db.models import Q, Value
+    from django.db.models.functions import Greatest
+    
+    # Obtener sinónimos y términos relacionados
+    terminos_busqueda = expandir_busqueda_con_sinonimos(query)
+    
+    # Crear filtro Q dinámico para incluir todos los términos
+    filtro_q = Q()
+    for termino in terminos_busqueda:
+        filtro_q |= (Q(descripcion__icontains=termino) | Q(nombre__icontains=termino) if hasattr(Partida, 'nombre') else Q(descripcion__icontains=termino))
+    
+    # Buscar en partidas
+    partidas = Partida.objects.filter(filtro_q)
+    
+    # Buscar en subpartidas
+    subpartidas = Subpartida.objects.filter(filtro_q)
+    
+    return partidas, subpartidas, terminos_busqueda
+
+# Utilidad: Normalizar códigos (eliminar puntos)
+def _normalizar_codigo(codigo):
+    """
+    Elimina puntos de un código para comparación flexible.
+    Ej: "0101.21.00.00" → "010121.00.00" → "010121000000"
+    """
+    if not codigo:
+        return ""
+    return codigo.replace('.', '')
+
+# Utilidad: Buscar códigos sin puntos
+def _buscar_codigos_sin_puntos(query_normalizada):
+    """
+    Busca códigos en la BD que coincidan sin considerar puntos.
+    Ej: busca "010121" y encuentra "0101.21.00.00"
+    """
+    # Obtener todos los códigos y normalizarlos
+    partidas_todas = Partida.objects.all()
+    subpartidas_todas = Subpartida.objects.all()
+    
+    partidas_encontradas = []
+    subpartidas_encontradas = []
+    
+    for p in partidas_todas:
+        if _normalizar_codigo(p.codigo).startswith(query_normalizada):
+            partidas_encontradas.append(p)
+    
+    for s in subpartidas_todas:
+        if _normalizar_codigo(s.codigo).startswith(query_normalizada):
+            subpartidas_encontradas.append(s)
+    
+    return partidas_encontradas, subpartidas_encontradas
+
 # Utilidad: Crear reporte de trazabilidad automáticamente
 def _crear_reporte_busqueda(usuario, codigo, descripcion, tipo_accion, resultado='exitosa'):
     """Crea un registro de trazabilidad sin afectar el flujo de la aplicación."""
@@ -330,6 +389,75 @@ def buscador_global(request):
     # (Cambiamos __icontains por búsquedas exactas o 'startswith' para ser más precisos)
     partidas_exactas = Partida.objects.filter(codigo=query)
     subpartidas_exactas = Subpartida.objects.filter(codigo=query)
+    
+    # Si no hay exactos, intentar sin puntos
+    query_normalizada = _normalizar_codigo(query)
+    if (not partidas_exactas.exists() and not subpartidas_exactas.exists()) and query_normalizada != query:
+        partidas_exactas_sin_puntos, subpartidas_exactas_sin_puntos = _buscar_codigos_sin_puntos(query_normalizada)
+        if len(partidas_exactas_sin_puntos) == 1 and len(subpartidas_exactas_sin_puntos) == 0:
+            partida = partidas_exactas_sin_puntos[0]
+            HistorialBusqueda.objects.create(
+                usuario=request.user, termino_busqueda=query,
+                tipo_resultado='Partida', id_resultado=partida.id
+            )
+            # Crear reporte de trazabilidad
+            _crear_reporte_busqueda(
+                request.user, 
+                partida.codigo, 
+                partida.descripcion, 
+                'consulta_detalle'
+            )
+            # Registrar en bitácora
+            registrar_bitacora(
+                request,
+                'busqueda',
+                f'Búsqueda realizada: "{query}" (normalizado: {partida.codigo}) - Resultado: Partida {partida.codigo}',
+                {'termino': query, 'tipo_resultado': 'Partida', 'codigo': partida.codigo, 'id': partida.id}
+            )
+            return redirect('arancel:partida_detail', pk=partida.id)
+        
+        elif len(subpartidas_exactas_sin_puntos) == 1 and len(partidas_exactas_sin_puntos) == 0:
+            subpartida = subpartidas_exactas_sin_puntos[0]
+            if is_descriptive_code(subpartida.codigo):
+                HistorialBusqueda.objects.create(
+                    usuario=request.user, termino_busqueda=query,
+                    tipo_resultado='Subpartida', id_resultado=subpartida.id
+                )
+                # Crear reporte de trazabilidad
+                _crear_reporte_busqueda(
+                    request.user,
+                    subpartida.codigo,
+                    subpartida.descripcion,
+                    'consulta_detalle'
+                )
+                # Registrar en bitácora
+                registrar_bitacora(
+                    request,
+                    'busqueda',
+                    f'Búsqueda realizada: "{query}" (normalizado: {subpartida.codigo}) - Resultado: Subpartida {subpartida.codigo}',
+                    {'termino': query, 'tipo_resultado': 'Subpartida', 'codigo': subpartida.codigo, 'id': subpartida.id}
+                )
+                return redirect(f'/arancel/partidas/{subpartida.partida.id}/?highlight={subpartida.id}')
+            else:
+                HistorialBusqueda.objects.create(
+                    usuario=request.user, termino_busqueda=query,
+                    tipo_resultado='Subpartida', id_resultado=subpartida.id
+                )
+                # Crear reporte de trazabilidad
+                _crear_reporte_busqueda(
+                    request.user,
+                    subpartida.codigo,
+                    subpartida.descripcion,
+                    'consulta_detalle'
+                )
+                # Registrar en bitácora
+                registrar_bitacora(
+                    request,
+                    'busqueda',
+                    f'Búsqueda realizada: "{query}" (normalizado: {subpartida.codigo}) - Resultado: Subpartida {subpartida.codigo}',
+                    {'termino': query, 'tipo_resultado': 'Subpartida', 'codigo': subpartida.codigo, 'id': subpartida.id}
+                )
+                return redirect('arancel:subpartida_detail', pk=subpartida.id)
     
     # Si hay una sola partida EXACTA
     if partidas_exactas.count() == 1 and subpartidas_exactas.count() == 0:
@@ -570,6 +698,24 @@ def autocomplete_arancel(request):
             Q(codigo__icontains=query) | Q(descripcion__icontains=query)
         ).exclude(id__in=[s.id for s in subpartidas_exactas])
         
+        # Búsqueda con sinónimos (si no es un código)
+        partidas_sinonimos = Partida.objects.none()
+        subpartidas_sinonimos = Subpartida.objects.none()
+        if not es_codigo and len(query) >= 3:
+            try:
+                partidas_sin, subpartidas_sin, terminos_usados = _buscar_con_sinonimos(query)
+                # Excluir resultados ya encontrados
+                partidas_sinonimos = partidas_sin.exclude(
+                    id__in=list(partidas_exactas.values_list('id', flat=True)) + 
+                           list(partidas_aprox.values_list('id', flat=True))
+                )
+                subpartidas_sinonimos = subpartidas_sin.exclude(
+                    id__in=list(subpartidas_exactas.values_list('id', flat=True)) + 
+                           list(subpartidas_aprox.values_list('id', flat=True))
+                )
+            except Exception as e:
+                pass  # Si hay error en búsqueda con sinónimos, continuar sin ellos
+        
         # Crear lista de resultados con puntajes
         resultados_con_puntaje = []
         
@@ -677,6 +823,40 @@ def autocomplete_arancel(request):
                     'titulo_desc': _clean_text_for_json(titulo_desc),
                     'puntaje': puntaje,
                     'es_correccion': False
+                })
+        
+        # Agregar resultados de búsqueda con sinónimos (con puntaje más bajo que exacta/aproximada)
+        for p in partidas_sinonimos[:5]:  # Limitar a 5 resultados de sinónimos
+            puntaje = calcular_puntaje_item(p, query_lower, False)
+            if puntaje > 0.2:
+                resultados_con_puntaje.append({
+                    'tipo': 'Partida',
+                    'id': p.id,
+                    'codigo': _clean_text_for_json(p.codigo),
+                    'descripcion': _clean_text_for_json(p.descripcion),
+                    'puntaje': puntaje * 0.75,  # Reducir puntaje para que aparezcan después de exactos/aproximados
+                    'es_correccion': False,
+                    'es_sinonimo': True
+                })
+        
+        for s in subpartidas_sinonimos[:5]:  # Limitar a 5 resultados de sinónimos
+            puntaje = calcular_puntaje_item(s, query_lower, False)
+            if puntaje > 0.2:
+                titulo_desc = ''
+                anteriores = Subpartida.objects.filter(partida=s.partida, id__lt=s.id).order_by('-id')
+                for ant in anteriores:
+                    if is_descriptive_code(ant.codigo):
+                        titulo_desc = ant.descripcion
+                        break
+                resultados_con_puntaje.append({
+                    'tipo': 'Subpartida',
+                    'id': s.id,
+                    'codigo': _clean_text_for_json(s.codigo),
+                    'descripcion': _clean_text_for_json(s.descripcion),
+                    'titulo_desc': _clean_text_for_json(titulo_desc),
+                    'puntaje': puntaje * 0.75,  # Reducir puntaje para que aparezcan después de exactos/aproximados
+                    'es_correccion': False,
+                    'es_sinonimo': True
                 })
         
         # Si no hay resultados suficientes (menos de 3), buscar sugerencias de corrección basadas en similitud de texto
@@ -896,19 +1076,49 @@ def prevalidacion_api(request, codigo):
 def resultados_busqueda(request):
     query = request.GET.get('q', '').strip()
     
-    # 1. Búsqueda normal con __icontains
-    partidas = Partida.objects.filter(Q(codigo__icontains=query) | Q(descripcion__icontains=query))
-    subpartidas = Subpartida.objects.filter(Q(codigo__icontains=query) | Q(descripcion__icontains=query))
+    # 1. Búsqueda normal con __icontains (sin ser agresivo con puntos)
+    # Limpiar la query de puntos innecesarios para la búsqueda
+    query_limpia = query.replace('.', '')  # Remover puntos para búsqueda más flexible
+    
+    # Búsqueda primaria con query limpia
+    partidas = Partida.objects.filter(Q(codigo__icontains=query_limpia) | Q(descripcion__icontains=query_limpia))
+    subpartidas = Subpartida.objects.filter(Q(codigo__icontains=query_limpia) | Q(descripcion__icontains=query_limpia))
+    
+    # Si es un código y no hay resultados, buscar sin considerar puntos en BD
+    if (not partidas.exists() and not subpartidas.exists()) and any(char.isdigit() for char in query_limpia):
+        try:
+            partidas_sin_puntos, subpartidas_sin_puntos = _buscar_codigos_sin_puntos(query_limpia)
+            if partidas_sin_puntos or subpartidas_sin_puntos:
+                partidas = Partida.objects.filter(id__in=[p.id for p in partidas_sin_puntos])
+                subpartidas = Subpartida.objects.filter(id__in=[s.id for s in subpartidas_sin_puntos])
+        except Exception as e:
+            pass  # Si hay error, continuar con búsqueda normal
     
     total_results = partidas.count() + subpartidas.count()
     
     sugerencias_codigos = []
     sugerencias_desc = []
+    sugerencias_sinonimos = []
     query_corregida = None
     correcciones_realizadas = []
     
-    # 1.5. Si no hay resultados, intentar corrección ortográfica primero
-    if total_results == 0 and query:
+    # 1.5. Si no hay resultados, intentar búsqueda con sinónimos primero
+    if total_results == 0 and query_limpia and len(query_limpia) >= 3:
+        try:
+            partidas_sin, subpartidas_sin, terminos_usados = _buscar_con_sinonimos(query_limpia)
+            if partidas_sin.exists() or subpartidas_sin.exists():
+                partidas = partidas_sin
+                subpartidas = subpartidas_sin
+                total_results = partidas.count() + subpartidas.count()
+                # Guardar información de búsqueda con sinónimos
+                sinonimos_encontrados = obtener_sinonimos(query_limpia)
+                if sinonimos_encontrados:
+                    sugerencias_sinonimos = sinonimos_encontrados[:5]
+        except Exception as e:
+            pass  # Si hay error, continuar con corrección ortográfica
+    
+    # 1.6. Si no hay resultados, intentar corrección ortográfica
+    if total_results == 0 and query_limpia:
         # Intentar corregir la ortografía
         query_corregida, correcciones = _corregir_ortografia(query)
         
@@ -1006,6 +1216,7 @@ def resultados_busqueda(request):
         'correcciones_realizadas': correcciones_realizadas,
         'partidas': partidas,
         'subpartidas': subpartidas,
-        'sugerencias_codigos': sugerencias_codigos,   # <-- ¡Nuevos!
-        'sugerencias_desc': sugerencias_desc,       # <-- ¡Nuevos!
+        'sugerencias_codigos': sugerencias_codigos,
+        'sugerencias_desc': sugerencias_desc,
+        'sugerencias_sinonimos': sugerencias_sinonimos,
     })

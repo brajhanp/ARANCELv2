@@ -81,6 +81,21 @@
                     {% endfor %}
                 </ul>
             {% endif %}
+            
+            {% if sugerencias_sinonimos %}
+                <div class="alert alert-info mt-3" role="alert">
+                    <p class="mb-2"><strong><i class="fas fa-lightbulb me-2"></i>Términos relacionados encontrados:</strong></p>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for sinonimo in sugerencias_sinonimos %}
+                            <a href="{% url 'arancel:buscador_global' %}?q={{ sinonimo }}" 
+                               class="btn btn-outline-info btn-sm" 
+                               title="Buscar '{{ sinonimo }}'">
+                                {{ sinonimo }}
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
         </div>
 
     {% elif partidas or subpartidas %}
